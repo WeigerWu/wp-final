@@ -18,7 +18,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <ProfileContent userId={user.id} initialRecipes={recipes} />
+      <ProfileContent userId={user.id} initialRecipes={recipes} currentUserId={user.id} />
     </div>
   )
 }

@@ -121,12 +121,15 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
         {/* Meta Info */}
         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
           {recipe.user && (
-            <div className="flex items-center space-x-2">
+            <Link 
+              href={`/profile/${recipe.user_id}`}
+              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+            >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-600">
                 {recipe.user.username?.[0]?.toUpperCase() || 'U'}
               </div>
               <span>{recipe.user.username || '匿名用戶'}</span>
-            </div>
+            </Link>
           )}
           <span>•</span>
           <span>{formatDate(recipe.created_at)}</span>

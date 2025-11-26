@@ -13,6 +13,7 @@ export interface Database {
         Row: {
           id: string
           username: string | null
+          display_name: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
@@ -21,6 +22,7 @@ export interface Database {
         Insert: {
           id: string
           username?: string | null
+          display_name?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -29,6 +31,7 @@ export interface Database {
         Update: {
           id?: string
           username?: string | null
+          display_name?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
