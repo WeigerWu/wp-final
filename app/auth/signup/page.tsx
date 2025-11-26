@@ -53,8 +53,9 @@ export default function SignupPage() {
       if (data.user) {
         // 確保 profile 已創建（如果觸發器沒有執行，手動創建）
         try {
-          const { error: profileError } = await supabase
-            .from('profiles')
+          // Type assertion needed due to Supabase TypeScript type inference limitations
+          const { error: profileError } = await (supabase
+            .from('profiles') as any)
             .upsert({
               id: data.user.id,
               username: username || `user_${data.user.id.substring(0, 8)}`,
