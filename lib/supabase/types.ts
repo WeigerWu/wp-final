@@ -12,25 +12,58 @@ export interface Database {
       profiles: {
         Row: {
           id: string
-          username: string | null
+          username: string
+          display_name: string | null
           avatar_url: string | null
           bio: string | null
+          website: string | null
+          location: string | null
+          dietary_preferences: string[] | null
+          dietary_restrictions: string[] | null
+          cuisine_preferences: string[] | null
+          recipe_count: number
+          follower_count: number
+          following_count: number
+          is_public: boolean
+          email_notifications: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
           id: string
-          username?: string | null
+          username: string
+          display_name?: string | null
           avatar_url?: string | null
           bio?: string | null
+          website?: string | null
+          location?: string | null
+          dietary_preferences?: string[] | null
+          dietary_restrictions?: string[] | null
+          cuisine_preferences?: string[] | null
+          recipe_count?: number
+          follower_count?: number
+          following_count?: number
+          is_public?: boolean
+          email_notifications?: boolean
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          username?: string | null
+          username?: string
+          display_name?: string | null
           avatar_url?: string | null
           bio?: string | null
+          website?: string | null
+          location?: string | null
+          dietary_preferences?: string[] | null
+          dietary_restrictions?: string[] | null
+          cuisine_preferences?: string[] | null
+          recipe_count?: number
+          follower_count?: number
+          following_count?: number
+          is_public?: boolean
+          email_notifications?: boolean
           created_at?: string
           updated_at?: string
         }
