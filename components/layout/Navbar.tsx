@@ -86,7 +86,7 @@ export function Navbar() {
             ) : user ? (
               <>
                 <Link
-                  href="/profile"
+                  href={user ? `/profile/${user.id}` : '/profile'}
                   className="flex items-center space-x-2 text-gray-700 hover:text-primary-600"
                 >
                   <User className="h-5 w-5" />
@@ -166,7 +166,7 @@ export function Navbar() {
               ) : user ? (
                 <>
                   <Link
-                    href="/profile"
+                    href={user ? `/profile/${user.id}` : '/profile'}
                     className="flex items-center space-x-2 text-gray-700 hover:text-primary-600"
                     onClick={() => setIsOpen(false)}
                   >

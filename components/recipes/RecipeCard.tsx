@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Recipe } from '@/types/recipe'
-import { Star, Clock, Users } from 'lucide-react'
+import { Star, Clock, Users, Heart } from 'lucide-react'
 import { formatTime, truncate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -65,18 +65,32 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
           )}
 
           {/* Recipe Meta */}
-          <div className="flex items-center justify-between text-sm text-gray-500">
+          <div className="flex flex-col space-y-2 text-sm text-gray-500">
             <div className="flex items-center space-x-4">
               {recipe.average_rating && recipe.average_rating > 0 && (
                 <div className="flex items-center space-x-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span>{recipe.average_rating.toFixed(1)}</span>
+                  <span className="font-medium">{recipe.average_rating.toFixed(1)}</span>
                   <span className="text-gray-400">
                     ({recipe.rating_count || 0})
                   </span>
                 </div>
               )}
-              {recipe.prep_time && (
+              {recipe.favorite_count !== undefined && recipe.favorite_count > 0 && (
+                <div className="flex items-center space-x-1">
+                  <Heart className="h-4 w-4 text-red-400" />
+                  <span>{recipe.favorite_count}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center space-x-4">
+              {recipe.prep_time && recipe.cook_time && (
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-4 w-4" />
+                  <span>{recipe.prep_time + recipe.cook_time} 分鐘</span>
+                </div>
+              )}
+              {recipe.prep_time && !recipe.cook_time && (
                 <div className="flex items-center space-x-1">
                   <Clock className="h-4 w-4" />
                   <span>{recipe.prep_time} 分鐘</span>
@@ -107,14 +121,18 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
 
           {/* Author */}
           {recipe.user && (
-            <div className="mt-3 flex items-center space-x-2 border-t pt-3">
+            <Link 
+              href={`/profile/${recipe.user_id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-3 flex items-center space-x-2 border-t pt-3 hover:opacity-80 transition-opacity"
+            >
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600">
                 {recipe.user.username?.[0]?.toUpperCase() || 'U'}
               </div>
               <span className="text-xs text-gray-600">
                 {recipe.user.username || '匿名用戶'}
               </span>
-            </div>
+            </Link>
           )}
         </div>
       </div>
