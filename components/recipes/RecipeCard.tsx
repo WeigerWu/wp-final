@@ -23,9 +23,13 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
     hard: '困難',
   }
 
-  return (
-    <Link href={`/recipes/${recipe.id}`} className={cn('block', className)}>
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+  const isPreview = recipe.id === 'preview'
+  
+  const cardContent = (
+      <div className={cn(
+        "overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm",
+        !isPreview && "transition-shadow hover:shadow-md"
+      )}>
         {/* Recipe Image */}
         <div className="relative h-48 w-full overflow-hidden bg-gray-200">
           {recipe.image_url ? (
@@ -84,16 +88,12 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
               )}
             </div>
             <div className="flex items-center space-x-4">
-              {recipe.prep_time && recipe.cook_time && (
+              {(recipe.prep_time || recipe.cook_time) && (
                 <div className="flex items-center space-x-1">
                   <Clock className="h-4 w-4" />
-                  <span>{recipe.prep_time + recipe.cook_time} 分鐘</span>
-                </div>
-              )}
-              {recipe.prep_time && !recipe.cook_time && (
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-4 w-4" />
-                  <span>{recipe.prep_time} 分鐘</span>
+                  <span>
+                    {formatTime((recipe.prep_time || 0) + (recipe.cook_time || 0) || null)}
+                  </span>
                 </div>
               )}
               {recipe.servings && (
@@ -120,7 +120,7 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
           )}
 
           {/* Author */}
-          {recipe.user && (
+          {recipe.user && !isPreview && (
             <Link 
               href={`/profile/${recipe.user_id}`}
               onClick={(e) => e.stopPropagation()}
@@ -136,6 +136,15 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
           )}
         </div>
       </div>
+  )
+
+  if (isPreview) {
+    return <div className={cn('block', className)}>{cardContent}</div>
+  }
+
+  return (
+    <Link href={`/recipes/${recipe.id}`} className={cn('block', className)}>
+      {cardContent}
     </Link>
   )
 }
