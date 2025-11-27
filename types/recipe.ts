@@ -3,6 +3,7 @@ export interface Ingredient {
   amount: string
   unit?: string
   note?: string // 備註：切碎、常溫、去皮等
+  category?: string // 分類：醬料、調味料、主料等
 }
 
 export interface RecipeStep {

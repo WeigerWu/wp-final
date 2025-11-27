@@ -1,207 +1,75 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm, useFieldArray } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { createRecipe } from '@/lib/actions/recipes'
+import { createSupabaseClient } from '@/lib/supabase/client'
 import { uploadImage } from '@/lib/cloudinary'
+import { smartCompressImage } from '@/lib/image-utils'
 import { Button } from '@/components/ui/Button'
-import { RecipeCard } from '@/components/recipes/RecipeCard'
-import { Recipe } from '@/types/recipe'
-import { 
-  Plus, 
-  X, 
-  Upload, 
-  ArrowLeft, 
-  ChevronUp, 
-  ChevronDown,
-  Save,
-  Eye,
-  EyeOff,
-  Clock
-} from 'lucide-react'
-import { formatTime } from '@/lib/utils'
+import { Plus, X, Upload, ArrowLeft, Check, AlertCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
-// 擴展 Ingredient 類型以包含備註
-const ingredientSchema = z.object({
-  name: z.string().min(1, '食材名稱為必填'),
-  amount: z.string().optional(),
-  unit: z.string().optional(),
-  note: z.string().optional(), // 備註欄位
-})
-
-const stepSchema = z.object({
-  step_number: z.number(),
-  instruction: z.string().min(1, '步驟說明為必填'),
-  image_url: z.string().optional(),
-  timer_minutes: z.number().optional(),
-})
-
-const recipeSchema = z.object({
-  title: z.string().min(1, '標題為必填'),
-  description: z.string().optional(),
-  servings: z.number().min(1).optional(),
-  prep_time: z.number().min(1).optional(),
-  cook_time: z.number().min(1).optional(),
-  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
-  category_id: z.string().optional(),
-  tags: z.array(z.string()).default([]),
-  ingredients: z.array(ingredientSchema).min(1, '至少需要 1 個食材'),
-  steps: z.array(stepSchema).min(1, '至少需要 1 個步驟'),
-})
-
-type RecipeFormData = z.infer<typeof recipeSchema>
-
-interface RecipeUploadFormProps {
-  initialRecipe?: Recipe | null
-  mode?: 'create' | 'edit'
+interface Ingredient {
+  name: string
+  amount: string
+  unit: string
+  note: string
+  category: string
 }
 
-const DRAFT_KEY = 'recipe-draft'
+interface Step {
+  instruction: string
+  image_url?: string
+  timer_minutes?: number
+}
 
-export function RecipeUploadForm({ initialRecipe, mode = 'create' }: RecipeUploadFormProps) {
+interface SubmissionState {
+  step: 'idle' | 'validating' | 'uploading-image' | 'saving' | 'success' | 'error'
+  progress: number // 0-100
+  message: string
+  error?: string
+}
+
+export function RecipeUploadForm() {
   const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showPreview, setShowPreview] = useState(true)
-  const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const [submissionState, setSubmissionState] = useState<SubmissionState>({
+    step: 'idle',
+    progress: 0,
+    message: '',
+  })
+
+  // 基本資訊
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [servings, setServings] = useState('')
+  const [prepTime, setPrepTime] = useState('')
+  const [cookTime, setCookTime] = useState('')
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | ''>('')
+  
+  // 圖片
   const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(
-    initialRecipe?.image_url || null
-  )
-  const [stepImages, setStepImages] = useState<{ [key: number]: File | null }>({})
-  const [stepImagePreviews, setStepImagePreviews] = useState<{ [key: number]: string | null }>({})
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-    control,
-    trigger,
-  } = useForm<RecipeFormData>({
-    resolver: zodResolver(recipeSchema),
-    defaultValues: {
-      title: initialRecipe?.title || '',
-      description: initialRecipe?.description || '',
-      servings: initialRecipe?.servings || undefined,
-      prep_time: initialRecipe?.prep_time || undefined,
-      cook_time: initialRecipe?.cook_time || undefined,
-      difficulty: initialRecipe?.difficulty || undefined,
-      tags: initialRecipe?.tags || [],
-      ingredients: initialRecipe?.ingredients?.length 
-        ? initialRecipe.ingredients.map((ing: any) => ({
-            name: ing.name || '',
-            amount: ing.amount || '',
-            unit: ing.unit || '',
-            note: ing.note || '',
-          }))
-        : [
-            { name: '雞胸肉', amount: '200', unit: 'g', note: '去皮切條' },
-            { name: '', amount: '', unit: '', note: '' },
-            { name: '', amount: '', unit: '', note: '' },
-          ],
-      steps: initialRecipe?.steps?.length 
-        ? initialRecipe.steps.map((step: any) => ({
-            step_number: step.step_number || 0,
-            instruction: step.instruction || '',
-            image_url: step.image_url || undefined,
-            timer_minutes: step.timer_minutes || undefined,
-          }))
-        : [{ step_number: 1, instruction: '' }],
-    },
-  })
+  // 食材
+  const [ingredients, setIngredients] = useState<Ingredient[]>([
+    { name: '', amount: '', unit: '', note: '', category: '' },
+  ])
 
-  const { fields: ingredientFields, append: appendIngredient, remove: removeIngredient, move: moveIngredient } = useFieldArray({
-    control,
-    name: 'ingredients',
-  })
+  // 食材分類管理
+  const commonCategories = ['主料', '調味料', '醬料', '蔬菜', '肉類', '海鮮', '配菜', '裝飾']
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [newCategoryInput, setNewCategoryInput] = useState('')
 
-  const { fields: stepFields, append: appendStep, remove: removeStep, move: moveStep } = useFieldArray({
-    control,
-    name: 'steps',
-  })
+  // 步驟
+  const [steps, setSteps] = useState<Step[]>([
+    { instruction: '' },
+  ])
 
-  const watchedValues = watch()
-  const ingredients = watch('ingredients')
-  const steps = watch('steps')
-  const tags = watch('tags') || []
+  // 標籤
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
 
-  // 載入草稿
-  useEffect(() => {
-    if (mode === 'create' && typeof window !== 'undefined') {
-      const draft = localStorage.getItem(DRAFT_KEY)
-      if (draft) {
-        try {
-          const draftData = JSON.parse(draft)
-          // 載入草稿資料
-          Object.keys(draftData).forEach((key) => {
-            if (key === 'ingredients' || key === 'steps' || key === 'tags') {
-              setValue(key as any, draftData[key])
-            } else {
-              setValue(key as any, draftData[key])
-            }
-          })
-          if (draftData.imagePreview) {
-            setImagePreview(draftData.imagePreview)
-          }
-          console.log('✅ 已載入草稿')
-        } catch (error) {
-          console.error('載入草稿失敗:', error)
-        }
-      }
-    }
-  }, [mode, setValue])
-
-  // 自動儲存草稿
-  const saveDraft = useCallback(async () => {
-    if (mode === 'edit') return // 編輯模式不使用草稿功能
-    
-    setIsAutoSaving(true)
-    const formData = {
-      ...watchedValues,
-      imagePreview,
-    }
-    
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(formData))
-      setLastSaved(new Date())
-      console.log('💾 草稿已自動儲存')
-    } catch (error) {
-      console.error('儲存草稿失敗:', error)
-    } finally {
-      setIsAutoSaving(false)
-    }
-  }, [watchedValues, imagePreview, mode])
-
-  // 監聽表單變化，自動儲存
-  useEffect(() => {
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current)
-    }
-
-    autoSaveTimerRef.current = setTimeout(() => {
-      saveDraft()
-    }, 10000) // 10秒後自動儲存
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current)
-      }
-    }
-  }, [watchedValues, imagePreview, saveDraft])
-
-  // 清除草稿
-  const clearDraft = () => {
-    localStorage.removeItem(DRAFT_KEY)
-    setLastSaved(null)
-  }
+  const commonTags = ['家常', '快速', '減脂', '素食', '無麩質', '學生宿舍', '電鍋']
 
   // 圖片上傳處理
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,612 +84,833 @@ export function RecipeUploadForm({ initialRecipe, mode = 'create' }: RecipeUploa
     }
   }
 
-  const handleStepImageChange = (stepIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setStepImages({ ...stepImages, [stepIndex]: file })
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setStepImagePreviews({ ...stepImagePreviews, [stepIndex]: reader.result as string })
-      }
-      reader.readAsDataURL(file)
+  // 添加食材
+  const addIngredient = (category?: string) => {
+    setIngredients([...ingredients, { name: '', amount: '', unit: '', note: '', category: category || '' }])
+  }
+
+  // 移除食材
+  const removeIngredient = (index: number) => {
+    setIngredients(ingredients.filter((_, i) => i !== index))
+  }
+
+  // 更新食材
+  const updateIngredient = (index: number, field: keyof Ingredient, value: string) => {
+    const newIngredients = [...ingredients]
+    newIngredients[index] = { ...newIngredients[index], [field]: value }
+    setIngredients(newIngredients)
+  }
+
+  // 添加自定義分類
+  const addCustomCategory = () => {
+    if (newCategoryInput.trim() && !commonCategories.includes(newCategoryInput.trim()) && !customCategories.includes(newCategoryInput.trim())) {
+      setCustomCategories([...customCategories, newCategoryInput.trim()])
+      setNewCategoryInput('')
     }
   }
 
-  // 移除步驟圖片
-  const removeStepImage = (stepIndex: number) => {
-    const newStepImages = { ...stepImages }
-    const newPreviews = { ...stepImagePreviews }
-    delete newStepImages[stepIndex]
-    delete newPreviews[stepIndex]
-    setStepImages(newStepImages)
-    setStepImagePreviews(newPreviews)
-    setValue(`steps.${stepIndex}.image_url`, undefined)
+  // 獲取所有分類
+  const getAllCategories = () => {
+    return [...commonCategories, ...customCategories]
   }
 
-  // 標籤管理
+  // 添加步驟
+  const addStep = () => {
+    setSteps([...steps, { instruction: '' }])
+  }
+
+  // 移除步驟
+  const removeStep = (index: number) => {
+    setSteps(steps.filter((_, i) => i !== index))
+  }
+
+  // 更新步驟
+  const updateStep = (index: number, field: keyof Step, value: string | number) => {
+    const newSteps = [...steps]
+    newSteps[index] = { ...newSteps[index], [field]: value }
+    setSteps(newSteps)
+  }
+
+  // 添加標籤
   const addTag = (tag: string) => {
     if (tag && !tags.includes(tag)) {
-      setValue('tags', [...tags, tag])
+      setTags([...tags, tag])
     }
   }
 
+  // 移除標籤
   const removeTag = (tag: string) => {
-    setValue('tags', tags.filter((t) => t !== tag))
+    setTags(tags.filter((t) => t !== tag))
   }
 
-  // 常用標籤
-  const commonTags = ['家常', '快速', '減脂', '素食', '無麩質', '學生宿舍', '電鍋', '10分鐘內']
+  // 更新提交狀態
+  const updateState = (updates: Partial<SubmissionState>) => {
+    setSubmissionState(prev => ({ ...prev, ...updates }))
+  }
 
-  // 生成預覽用的 Recipe 對象
-  const generatePreviewRecipe = (): Recipe => {
-    const totalTime = (watchedValues.prep_time || 0) + (watchedValues.cook_time || 0)
-    return {
-      id: 'preview',
-      user_id: 'preview',
-      title: watchedValues.title || '食譜標題',
-      description: watchedValues.description || null,
-      image_url: imagePreview || null,
-      servings: watchedValues.servings || null,
-      prep_time: watchedValues.prep_time || null,
-      cook_time: watchedValues.cook_time || null,
-      difficulty: watchedValues.difficulty || null,
-      tags: watchedValues.tags || [],
-      ingredients: (watchedValues.ingredients || []).map(ing => ({
-        name: ing.name || '',
-        amount: ing.amount || '',
-        unit: ing.unit,
-        note: ing.note,
-      })),
-      steps: watchedValues.steps || [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      average_rating: 0,
-      rating_count: 0,
-      favorite_count: 0,
+  // 表單提交 - 重新設計的版本
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // 步驟 1: 驗證表單
+    updateState({ step: 'validating', progress: 0, message: '正在驗證表單資料...' })
+
+    if (!title.trim()) {
+      updateState({ step: 'error', message: '請輸入食譜標題', error: '請輸入食譜標題' })
+      return
     }
-  }
 
-  // 表單提交
-  const onSubmit = async (data: RecipeFormData) => {
-    setIsSubmitting(true)
-    
+    const validIngredients = ingredients.filter((ing) => ing.name.trim())
+    if (validIngredients.length === 0) {
+      updateState({ step: 'error', message: '請至少添加一個食材', error: '請至少添加一個食材' })
+      return
+    }
+
+    const validSteps = steps.filter((step) => step.instruction.trim())
+    if (validSteps.length === 0) {
+      updateState({ step: 'error', message: '請至少添加一個步驟', error: '請至少添加一個步驟' })
+      return
+    }
+
     try {
-      // 驗證至少有一個食材和一個步驟
-      if (!data.ingredients || data.ingredients.length === 0) {
-        alert('請至少新增一個食材')
-        setIsSubmitting(false)
-        return
-      }
-      if (!data.steps || data.steps.length === 0) {
-        alert('請至少新增一個步驟')
-        setIsSubmitting(false)
+      // 步驟 2: 檢查認證
+      updateState({ progress: 10, message: '正在驗證登入狀態...' })
+      const supabase = createSupabaseClient()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !user) {
+        updateState({ step: 'error', message: '請先登入', error: '請先登入' })
+        router.push('/auth/login')
         return
       }
 
-      // 上傳封面圖片
-      let imageUrl = initialRecipe?.image_url || null
+      // 步驟 3: 上傳圖片（如果有）
+      let imageUrl: string | null = null
       if (imageFile) {
-        imageUrl = await uploadImage(imageFile, 'recipes')
+        updateState({ step: 'uploading-image', progress: 20, message: '正在壓縮圖片...' })
+        
+        try {
+          // 壓縮圖片
+          let fileToUpload = imageFile
+          try {
+            fileToUpload = await smartCompressImage(imageFile)
+            updateState({ progress: 40, message: '圖片壓縮完成，正在上傳...' })
+          } catch (compressError) {
+            console.warn('圖片壓縮失敗，使用原檔案:', compressError)
+            updateState({ progress: 30, message: '正在上傳圖片...' })
+          }
+
+          // 上傳圖片
+          imageUrl = await uploadImage(fileToUpload, 'recipes')
+          updateState({ progress: 60, message: '圖片上傳完成！' })
+        } catch (imgError: any) {
+          updateState({ 
+            step: 'error', 
+            message: '圖片上傳失敗', 
+            error: `圖片上傳失敗: ${imgError.message || '請檢查網路連接'}` 
+          })
+          return
+        }
+      } else {
+        updateState({ progress: 40, message: '跳過圖片上傳' })
       }
 
-      // 上傳步驟圖片
-      const stepsWithImages = await Promise.all(
-        data.steps.map(async (step, index) => {
-          if (stepImages[index]) {
-            const stepImageUrl = await uploadImage(stepImages[index]!, 'recipe-steps')
-            return { ...step, image_url: stepImageUrl }
-          }
-          return step
-        })
-      )
-
-      // 重新編號步驟
-      const numberedSteps = stepsWithImages.map((step, index) => ({
-        ...step,
+      // 步驟 4: 準備資料
+      updateState({ progress: 65, message: '正在準備資料...' })
+      
+      const formattedSteps = validSteps.map((step, index) => ({
         step_number: index + 1,
+        instruction: step.instruction.trim(),
+        image_url: step.image_url || null,
+        timer_minutes: step.timer_minutes || null,
       }))
 
-      const recipeData = {
-        ...data,
+      const formattedIngredients = validIngredients.map((ing) => ({
+        name: ing.name.trim(),
+        amount: ing.amount.trim() || undefined,
+        unit: ing.unit.trim() || undefined,
+        note: ing.note.trim() || undefined,
+        category: ing.category.trim() || undefined,
+      }))
+
+      // 準備食譜資料
+      const recipeData: any = {
+        title: title.trim(),
+        description: description.trim() || null,
         image_url: imageUrl,
-        steps: numberedSteps,
+        servings: servings ? parseInt(servings) : null,
+        prep_time: prepTime ? parseInt(prepTime) : null,
+        cook_time: cookTime ? parseInt(cookTime) : null,
+        difficulty: difficulty || null,
+        ingredients: formattedIngredients,
+        steps: formattedSteps,
+        tags: tags.length > 0 ? tags : [],
       }
 
-      await createRecipe(recipeData)
+      // 步驟 5: 儲存到資料庫
+      updateState({ step: 'saving', progress: 80, message: '正在儲存食譜...' })
+      
+      const { data: recipe, error: insertError } = await (supabase
+        .from('recipes') as any)
+        .insert({
+          ...recipeData,
+          user_id: user.id,
+        })
+        .select()
+        .single()
 
-      // 清除草稿
-      clearDraft()
+      if (insertError) {
+        updateState({ 
+          step: 'error', 
+          message: '儲存失敗', 
+          error: `儲存失敗: ${insertError.message || '請稍後再試'}` 
+        })
+        return
+      }
 
-      router.push('/recipes')
-      router.refresh()
-    } catch (error) {
-      console.error('Error saving recipe:', error)
-      alert('儲存失敗，請稍後再試')
-    } finally {
-      setIsSubmitting(false)
+      // 步驟 6: 儲存標籤（如果有的話）
+      // 注意：標籤功能暫時跳過，先確保基本發布功能正常
+      // TODO: 實作標籤關聯表功能
+
+      // 步驟 7: 成功！
+      updateState({ step: 'success', progress: 100, message: '發布成功！' })
+
+      // 2秒後跳轉（使用 window.location 避免 React 狀態問題）
+      setTimeout(() => {
+        router.push('/recipes')
+      }, 2000)
+
+    } catch (err: any) {
+      updateState({ 
+        step: 'error', 
+        message: '發生錯誤', 
+        error: err.message || '發生未知錯誤，請稍後再試' 
+      })
     }
   }
 
-  // 儲存草稿（手動）
-  const handleSaveDraft = async () => {
-    const isValid = await trigger()
-    if (isValid) {
-      saveDraft()
-      alert('草稿已儲存！')
-    }
+  // 重置狀態
+  const resetState = () => {
+    updateState({ step: 'idle', progress: 0, message: '', error: undefined })
   }
 
-  // 錯誤時滾動到第一個錯誤
-  const scrollToFirstError = () => {
-    const firstError = document.querySelector('.error-message, [aria-invalid="true"]')
-    if (firstError) {
-      firstError.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
+  const isSubmitting = submissionState.step !== 'idle' && submissionState.step !== 'success' && submissionState.step !== 'error'
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="border-b border-gray-200 bg-white">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link 
-              href="/recipes" 
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span>返回食譜列表</span>
-            </Link>
-            <div className="flex items-center space-x-4">
-              {lastSaved && (
-                <span className="text-sm text-gray-500">
-                  {isAutoSaving ? '儲存中...' : `已自動儲存 ${lastSaved.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`}
-                </span>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPreview(!showPreview)}
-                className="md:hidden"
-              >
-                {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
+          <Link 
+            href="/recipes" 
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>返回食譜列表</span>
+          </Link>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">上傳食譜</h1>
-          <p className="mt-2 text-gray-600">分享你的美味料理，讓更多人發現你的好手藝</p>
+          <p className="mt-2 text-gray-600">分享你的美味料理</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit, scrollToFirstError)}>
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* 左側：表單 */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* ① 基本資訊 */}
-              <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-bold">① 基本資訊</h2>
-                
-                {/* 標題 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    食譜標題 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    {...register('title')}
-                    placeholder="例如：奶油蒜香雞胸"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                  {errors.title && (
-                    <p className="mt-1 text-sm text-red-600 error-message">{errors.title.message}</p>
-                  )}
-                </div>
+        {/* 提交狀態顯示 */}
+        {(submissionState.step !== 'idle') && (
+          <div className="mb-6 rounded-lg border-2 p-6 shadow-lg" style={{
+            borderColor: submissionState.step === 'success' ? '#10b981' : submissionState.step === 'error' ? '#ef4444' : '#3b82f6',
+            backgroundColor: submissionState.step === 'success' ? '#ecfdf5' : submissionState.step === 'error' ? '#fef2f2' : '#eff6ff',
+          }}>
+            <div className="flex items-start space-x-4">
+              {/* 圖標 */}
+              <div className="flex-shrink-0">
+                {submissionState.step === 'success' ? (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                    <Check className="h-6 w-6 text-green-600" />
+                  </div>
+                ) : submissionState.step === 'error' ? (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                    <AlertCircle className="h-6 w-6 text-red-600" />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  </div>
+                )}
+              </div>
 
-                {/* 簡短介紹 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    簡短介紹
-                  </label>
-                  <textarea
-                    {...register('description')}
-                    rows={3}
-                    placeholder="例如：上班族 15 分鐘就能完成的奶油蒜香雞胸。"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
+              {/* 內容 */}
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold mb-1" style={{
+                  color: submissionState.step === 'success' ? '#065f46' : submissionState.step === 'error' ? '#991b1b' : '#1e40af',
+                }}>
+                  {submissionState.step === 'success' 
+                    ? '🎉 發布成功！' 
+                    : submissionState.step === 'error' 
+                    ? '❌ 發布失敗' 
+                    : '正在發布...'}
+                </h3>
+                <p className="text-sm mb-3" style={{
+                  color: submissionState.step === 'success' ? '#047857' : submissionState.step === 'error' ? '#dc2626' : '#2563eb',
+                }}>
+                  {submissionState.message}
+                </p>
 
-                {/* 封面圖片 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    封面圖片
-                  </label>
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 hover:border-primary-500 hover:bg-gray-100 transition-colors"
-                  >
-                    {imagePreview ? (
-                      <>
-                        <img
-                          src={imagePreview}
-                          alt="預覽"
-                          className="h-48 w-full rounded-lg object-cover"
-                        />
+                {/* 進度條 */}
+                {isSubmitting && (
+                  <div className="mb-3">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                      <div 
+                        className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                        style={{ width: `${submissionState.progress}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {submissionState.progress}% 完成
+                    </p>
+                  </div>
+                )}
+
+                {/* 錯誤訊息 */}
+                {submissionState.step === 'error' && submissionState.error && (
+                  <div className="rounded-md bg-red-50 p-3 mb-3">
+                    <p className="text-sm text-red-800">{submissionState.error}</p>
+                  </div>
+                )}
+
+                {/* 成功訊息 */}
+                {submissionState.step === 'success' && (
+                  <div className="rounded-md bg-green-50 p-3 mb-3">
+                    <p className="text-sm text-green-800">食譜已成功發布，即將跳轉到食譜列表...</p>
+                  </div>
+                )}
+
+                {/* 操作按鈕 */}
+                {submissionState.step === 'error' && (
+                  <div className="flex gap-3 mt-4">
+                    <Button onClick={resetState} variant="outline" size="sm">
+                      重試
+                    </Button>
+                    <Button onClick={() => router.back()} variant="ghost" size="sm">
+                      取消
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 基本資訊區塊 */}
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-xl font-bold">① 基本資訊</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  食譜標題 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="例如：奶油蒜香雞胸"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">簡短介紹</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  placeholder="例如：上班族 15 分鐘就能完成的奶油蒜香雞胸。"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* 封面圖片 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">封面圖片</label>
+                <div
+                  onClick={() => !isSubmitting && document.getElementById('image-upload')?.click()}
+                  className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {imagePreview ? (
+                    <>
+                      <img
+                        src={imagePreview}
+                        alt="預覽"
+                        className="h-48 w-full rounded-lg object-cover"
+                      />
+                      {!isSubmitting && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
                             setImagePreview(null)
                             setImageFile(null)
-                            if (fileInputRef.current) fileInputRef.current.value = ''
                           }}
                           className="mt-4 rounded-md bg-red-500 px-4 py-2 text-white hover:bg-red-600"
                         >
                           移除圖片
                         </button>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mb-4 h-12 w-12 text-gray-400" />
-                        <p className="text-sm text-gray-600">拖曳上傳或點此選擇檔案</p>
-                        <p className="mt-1 text-xs text-gray-500">建議尺寸：1200x800px</p>
-                      </>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                  </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mb-4 h-12 w-12 text-gray-400" />
+                      <p className="text-sm text-gray-600">點擊上傳封面圖片</p>
+                    </>
+                  )}
+                  <input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    disabled={isSubmitting}
+                  />
                 </div>
+              </div>
 
-                {/* 份量與時間 */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      份量（人份）
-                    </label>
-                    <input
-                      type="number"
-                      {...register('servings', { valueAsNumber: true })}
-                      min="1"
-                      placeholder="2"
-                      className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      準備時間（分鐘）
-                    </label>
-                    <input
-                      type="number"
-                      {...register('prep_time', { valueAsNumber: true })}
-                      min="1"
-                      placeholder="10"
-                      className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      料理時間（分鐘）
-                    </label>
-                    <input
-                      type="number"
-                      {...register('cook_time', { valueAsNumber: true })}
-                      min="1"
-                      placeholder="15"
-                      className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-                </div>
-
-                {/* 難度 */}
+              {/* 份量與時間 */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    難度
-                  </label>
-                  <div className="flex gap-2">
-                    {(['easy', 'medium', 'hard'] as const).map((difficulty) => (
-                      <button
-                        key={difficulty}
-                        type="button"
-                        onClick={() => setValue('difficulty', difficulty)}
-                        className={`flex-1 rounded-md px-4 py-3 font-medium transition-colors ${
-                          watchedValues.difficulty === difficulty
-                            ? 'bg-primary-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {difficulty === 'easy' ? '簡單' : difficulty === 'medium' ? '中等' : '困難'}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">份量（人份）</label>
+                  <input
+                    type="number"
+                    value={servings}
+                    onChange={(e) => setServings(e.target.value)}
+                    min="1"
+                    placeholder="2"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    disabled={isSubmitting}
+                  />
                 </div>
-              </section>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">準備時間（分鐘）</label>
+                  <input
+                    type="number"
+                    value={prepTime}
+                    onChange={(e) => setPrepTime(e.target.value)}
+                    min="1"
+                    placeholder="10"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">料理時間（分鐘）</label>
+                  <input
+                    type="number"
+                    value={cookTime}
+                    onChange={(e) => setCookTime(e.target.value)}
+                    min="1"
+                    placeholder="15"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
 
-              {/* ② 食材列表 */}
-              <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-xl font-bold">② 食材列表</h2>
+              {/* 難度 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">難度</label>
+                <div className="flex gap-2">
+                  {(['easy', 'medium', 'hard'] as const).map((diff) => (
+                    <button
+                      key={diff}
+                      type="button"
+                      onClick={() => !isSubmitting && setDifficulty(diff)}
+                      disabled={isSubmitting}
+                      className={`flex-1 rounded-md px-4 py-3 font-medium transition-colors ${
+                        difficulty === diff
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {diff === 'easy' ? '簡單' : diff === 'medium' ? '中等' : '困難'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 食材列表 - 保持原有設計但添加 disabled 狀態 */}
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4">
+              <h2 className="mb-4 text-xl font-bold">② 食材列表</h2>
+              
+              {/* 自定義分類輸入 */}
+              <div className="mb-4 rounded-lg bg-gray-50 p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">自定義分類</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addCustomCategory()
+                      }
+                    }}
+                    placeholder="輸入新分類名稱"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    disabled={isSubmitting}
+                  />
                   <Button
                     type="button"
-                    onClick={() => appendIngredient({ name: '', amount: '', unit: '', note: '' })}
+                    onClick={addCustomCategory}
                     variant="outline"
-                    size="sm"
+                    disabled={isSubmitting}
                   >
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增食材
+                    新增分類
                   </Button>
                 </div>
-
-                <div className="space-y-3">
-                  {ingredientFields.map((field, index) => (
-                    <div key={field.id} className="flex gap-2 items-start">
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          {...register(`ingredients.${index}.name`)}
-                          placeholder="食材名稱"
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && index === ingredientFields.length - 1) {
-                              e.preventDefault()
-                              appendIngredient({ name: '', amount: '', unit: '', note: '' })
-                            }
-                          }}
-                        />
-                        {errors.ingredients?.[index]?.name && (
-                          <p className="mt-1 text-xs text-red-600 error-message">
-                            {errors.ingredients[index]?.name?.message}
-                          </p>
+                {customCategories.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {customCategories.map((cat) => (
+                      <span
+                        key={cat}
+                        className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800"
+                      >
+                        {cat}
+                        {!isSubmitting && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomCategories(customCategories.filter((c) => c !== cat))}
+                            className="ml-2 text-blue-600 hover:text-blue-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                         )}
-                      </div>
-                      <div className="w-20">
-                        <input
-                          type="text"
-                          {...register(`ingredients.${index}.amount`)}
-                          placeholder="數量"
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                      </div>
-                      <div className="w-24">
-                        <select
-                          {...register(`ingredients.${index}.unit`)}
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 快速添加按鈕 */}
+              <div className="mb-4 flex flex-wrap gap-2">
+                {getAllCategories().map((category) => (
+                  <Button
+                    key={category}
+                    type="button"
+                    onClick={() => addIngredient(category)}
+                    variant="outline"
+                    size="sm"
+                    disabled={isSubmitting}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    新增 {category}
+                  </Button>
+                ))}
+                <Button
+                  type="button"
+                  onClick={() => addIngredient()}
+                  variant="outline"
+                  size="sm"
+                  disabled={isSubmitting}
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  新增（無分類）
+                </Button>
+              </div>
+            </div>
+
+            {/* 按分類分組顯示食材 */}
+            <div className="space-y-6">
+              {(() => {
+                const grouped = ingredients.reduce((acc, ing, index) => {
+                  const category = ing.category || '未分類'
+                  if (!acc[category]) {
+                    acc[category] = []
+                  }
+                  acc[category].push({ ...ing, originalIndex: index })
+                  return acc
+                }, {} as Record<string, Array<Ingredient & { originalIndex: number }>>)
+
+                const categoriesWithIngredients = Object.keys(grouped).sort()
+
+                if (categoriesWithIngredients.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      點擊上方按鈕開始添加食材
+                    </div>
+                  )
+                }
+
+                return categoriesWithIngredients.map((category) => (
+                  <div key={category} className="rounded-lg border border-gray-200 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900">
+                        {category === '未分類' ? '未分類' : category}
+                      </h3>
+                      {!isSubmitting && (
+                        <Button
+                          type="button"
+                          onClick={() => addIngredient(category === '未分類' ? '' : category)}
+                          variant="outline"
+                          size="sm"
                         >
-                          <option value="">單位</option>
-                          <option value="g">g</option>
-                          <option value="ml">ml</option>
-                          <option value="小匙">小匙</option>
-                          <option value="大匙">大匙</option>
-                          <option value="顆">顆</option>
-                          <option value="片">片</option>
-                          <option value="瓣">瓣</option>
-                          <option value="根">根</option>
-                          <option value="條">條</option>
-                        </select>
-                      </div>
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          {...register(`ingredients.${index}.note`)}
-                          placeholder="備註（切碎、常溫、去皮等）"
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                      </div>
+                          <Plus className="mr-1 h-3 w-3" />
+                          添加到此分類
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {grouped[category].map((ingredient) => {
+                        const index = ingredient.originalIndex
+                        return (
+                          <div key={index} className="flex gap-2 items-start">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={ingredient.name}
+                                onChange={(e) => updateIngredient(index, 'name', e.target.value)}
+                                placeholder="食材名稱"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            <div className="w-20">
+                              <input
+                                type="text"
+                                value={ingredient.amount}
+                                onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
+                                placeholder="數量"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            <div className="w-24">
+                              <select
+                                value={ingredient.unit}
+                                onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                disabled={isSubmitting}
+                              >
+                                <option value="">單位</option>
+                                <option value="g">g (公克)</option>
+                                <option value="kg">kg (公斤)</option>
+                                <option value="ml">ml (毫升)</option>
+                                <option value="L">L (公升)</option>
+                                <option value="小匙">小匙</option>
+                                <option value="大匙">大匙</option>
+                                <option value="杯">杯</option>
+                                <option value="顆">顆</option>
+                                <option value="個">個</option>
+                                <option value="粒">粒</option>
+                                <option value="片">片</option>
+                                <option value="瓣">瓣</option>
+                                <option value="根">根</option>
+                                <option value="條">條</option>
+                                <option value="尾">尾</option>
+                                <option value="隻">隻</option>
+                                <option value="塊">塊</option>
+                                <option value="支">支</option>
+                                <option value="把">把</option>
+                                <option value="束">束</option>
+                                <option value="包">包</option>
+                                <option value="盒">盒</option>
+                                <option value="罐">罐</option>
+                                <option value="瓶">瓶</option>
+                                <option value="適量">適量</option>
+                                <option value="少許">少許</option>
+                              </select>
+                            </div>
+                            <div className="w-28">
+                              <select
+                                value={ingredient.category}
+                                onChange={(e) => updateIngredient(index, 'category', e.target.value)}
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                disabled={isSubmitting}
+                              >
+                                <option value="">無分類</option>
+                                {getAllCategories().map((cat) => (
+                                  <option key={cat} value={cat}>
+                                    {cat}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={ingredient.note}
+                                onChange={(e) => updateIngredient(index, 'note', e.target.value)}
+                                placeholder="備註"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            {!isSubmitting && (
+                              <Button
+                                type="button"
+                                onClick={() => removeIngredient(index)}
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))
+              })()}
+            </div>
+          </section>
+
+          {/* 步驟列表 */}
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold">③ 步驟列表</h2>
+              {!isSubmitting && (
+                <Button
+                  type="button"
+                  onClick={addStep}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  新增步驟
+                </Button>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {steps.map((step, index) => (
+                <div key={index} className="rounded-lg border border-gray-200 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900">步驟 {index + 1}</h3>
+                    {!isSubmitting && (
                       <Button
                         type="button"
-                        onClick={() => removeIngredient(index)}
+                        onClick={() => removeStep(index)}
                         variant="outline"
                         size="sm"
                         className="text-red-600 hover:text-red-700"
                       >
                         <X className="h-4 w-4" />
                       </Button>
+                    )}
+                  </div>
+                  
+                  <textarea
+                    value={step.instruction}
+                    onChange={(e) => updateStep(index, 'instruction', e.target.value)}
+                    rows={3}
+                    placeholder="例如：將雞胸肉切成適口大小，撒上鹽與胡椒稍微醃 10 分鐘。"
+                    className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    disabled={isSubmitting}
+                  />
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        預估時間（分鐘）
+                      </label>
+                      <input
+                        type="number"
+                        value={step.timer_minutes || ''}
+                        onChange={(e) => updateStep(index, 'timer_minutes', parseInt(e.target.value) || 0)}
+                        min="1"
+                        placeholder="3"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        disabled={isSubmitting}
+                      />
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 標籤 */}
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-xl font-bold">④ 標籤</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">常用標籤</label>
+                <div className="flex flex-wrap gap-2">
+                  {commonTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => !isSubmitting && (tags.includes(tag) ? removeTag(tag) : addTag(tag))}
+                      disabled={isSubmitting}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                        tags.includes(tag)
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      #{tag}
+                    </button>
                   ))}
                 </div>
-                {errors.ingredients && (
-                  <p className="mt-2 text-sm text-red-600 error-message">
-                    {errors.ingredients.message}
-                  </p>
-                )}
-              </section>
+              </div>
 
-              {/* ③ 步驟列表 */}
-              <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-xl font-bold">③ 步驟列表</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">自訂標籤</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        if (tagInput.trim() && !isSubmitting) {
+                          addTag(tagInput.trim())
+                          setTagInput('')
+                        }
+                      }
+                    }}
+                    placeholder="輸入標籤並按 Enter"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    disabled={isSubmitting}
+                  />
                   <Button
                     type="button"
-                    onClick={() => appendStep({ step_number: stepFields.length + 1, instruction: '' })}
+                    onClick={() => {
+                      if (tagInput.trim() && !isSubmitting) {
+                        addTag(tagInput.trim())
+                        setTagInput('')
+                      }
+                    }}
                     variant="outline"
-                    size="sm"
+                    disabled={isSubmitting}
                   >
-                    <Plus className="mr-2 h-4 w-4" />
-                    新增步驟
+                    新增
                   </Button>
                 </div>
-
-                <div className="space-y-4">
-                  {stepFields.map((field, index) => (
-                    <div key={field.id} className="rounded-lg border border-gray-200 p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-gray-900">步驟 {index + 1}</h3>
-                        <div className="flex gap-2">
-                          {index > 0 && (
-                            <Button
-                              type="button"
-                              onClick={() => moveStep(index, index - 1)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <ChevronUp className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {index < stepFields.length - 1 && (
-                            <Button
-                              type="button"
-                              onClick={() => moveStep(index, index + 1)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <ChevronDown className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            type="button"
-                            onClick={() => removeStep(index)}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <textarea
-                        {...register(`steps.${index}.instruction`)}
-                        rows={3}
-                        placeholder="例如：將雞胸肉切成適口大小，撒上鹽與胡椒稍微醃 10 分鐘。"
-                        className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                      {errors.steps?.[index]?.instruction && (
-                        <p className="mb-3 text-xs text-red-600 error-message">
-                          {errors.steps[index]?.instruction?.message}
-                        </p>
-                      )}
-
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            預估時間（分鐘）
-                          </label>
-                          <input
-                            type="number"
-                            {...register(`steps.${index}.timer_minutes`, { valueAsNumber: true })}
-                            min="1"
-                            placeholder="3"
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            步驟圖片
-                          </label>
-                          {stepImagePreviews[index] ? (
-                            <div className="relative">
-                              <img
-                                src={stepImagePreviews[index]!}
-                                alt={`步驟 ${index + 1}`}
-                                className="h-24 w-full rounded-md object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeStepImage(index)}
-                                className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <label className="flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm hover:bg-gray-100">
-                              <Upload className="mr-2 h-4 w-4" />
-                              上傳圖片
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => handleStepImageChange(index, e)}
-                                className="hidden"
-                              />
-                            </label>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {errors.steps && (
-                  <p className="mt-2 text-sm text-red-600 error-message">
-                    {errors.steps.message}
-                  </p>
-                )}
-                <p className="mt-4 text-sm text-gray-500">
-                  💡 建議每個步驟只寫一個動作，讓烹飪模式更清楚。
-                </p>
-              </section>
-
-              {/* ④ 標籤與分類 */}
-              <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-bold">④ 標籤與分類</h2>
-                
-                {/* 常用標籤 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    常用標籤
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {commonTags.map((tag) => (
-                      <button
+                {tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <span
                         key={tag}
-                        type="button"
-                        onClick={() => {
-                          if (tags.includes(tag)) {
-                            removeTag(tag)
-                          } else {
-                            addTag(tag)
-                          }
-                        }}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                          tags.includes(tag)
-                            ? 'bg-primary-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800"
                       >
                         #{tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 自訂標籤 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    自訂標籤
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="輸入標籤並按 Enter"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          const input = e.target as HTMLInputElement
-                          if (input.value.trim()) {
-                            addTag(input.value.trim())
-                            input.value = ''
-                          }
-                        }
-                      }}
-                      className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-                  {tags.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800"
-                        >
-                          #{tag}
+                        {!isSubmitting && (
                           <button
                             type="button"
                             onClick={() => removeTag(tag)}
@@ -829,62 +918,45 @@ export function RecipeUploadForm({ initialRecipe, mode = 'create' }: RecipeUploa
                           >
                             <X className="h-3 w-3" />
                           </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* 底部按鈕 */}
-              <div className="sticky bottom-0 z-10 rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
-                <div className="flex justify-between gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSaveDraft}
-                    disabled={mode === 'edit'}
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    儲存草稿
-                  </Button>
-                  <div className="flex gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => router.back()}
-                    >
-                      取消
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? '發佈中...' : '發佈食譜'}
-                    </Button>
+                        )}
+                      </span>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             </div>
+          </section>
 
-            {/* 右側：預覽區 */}
-            <div className={`lg:col-span-1 ${showPreview ? 'block' : 'hidden'} lg:block`}>
-              <div className="sticky top-4">
-                <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-                  <h3 className="mb-4 text-lg font-bold">即時預覽</h3>
-                  <div className="space-y-4">
-                    <RecipeCard recipe={generatePreviewRecipe()} />
-                    
-                    {/* 提示 */}
-                    <div className="rounded-lg bg-blue-50 p-4">
-                      <h4 className="mb-2 font-semibold text-blue-900">💡 上傳小提醒</h4>
-                      <ul className="space-y-1 text-sm text-blue-800">
-                        <li>• 封面圖片建議尺寸 1200x800px</li>
-                        <li>• 步驟圖片有助於理解</li>
-                        <li>• 詳細的說明更容易獲得收藏</li>
-                        <li>• 標籤可幫助其他用戶找到你的食譜</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* 底部按鈕 */}
+          <div className="sticky bottom-0 z-10 rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
+            <div className="flex justify-end gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isSubmitting}
+              >
+                取消
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="min-w-[120px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    發布中...
+                  </>
+                ) : submissionState.step === 'success' ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    已發布
+                  </>
+                ) : (
+                  '發佈食譜'
+                )}
+              </Button>
             </div>
           </div>
         </form>
@@ -892,4 +964,3 @@ export function RecipeUploadForm({ initialRecipe, mode = 'create' }: RecipeUploa
     </div>
   )
 }
-

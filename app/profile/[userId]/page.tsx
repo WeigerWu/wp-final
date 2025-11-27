@@ -1,4 +1,4 @@
-import { createSupabaseClient } from '@/lib/supabase/client'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ProfileContent } from '@/components/profile/ProfileContent'
 import { getRecipes } from '@/lib/actions/recipes'
@@ -10,7 +10,7 @@ interface ProfilePageProps {
 }
 
 export default async function UserProfilePage({ params }: ProfilePageProps) {
-  const supabase = createSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { user: currentUser },
   } = await supabase.auth.getUser()
@@ -37,6 +37,7 @@ export default async function UserProfilePage({ params }: ProfilePageProps) {
         userId={userId} 
         initialRecipes={recipes}
         currentUserId={currentUser?.id || null}
+        initialProfile={profile}
       />
     </div>
   )

@@ -17,12 +17,13 @@ interface ProfileContentProps {
   userId: string
   initialRecipes: Recipe[]
   currentUserId?: string | null
+  initialProfile?: ProfileRow | null
 }
 
 type TabType = 'recipes' | 'favorites'
 
-export function ProfileContent({ userId, initialRecipes, currentUserId }: ProfileContentProps) {
-  const [profile, setProfile] = useState<ProfileRow | null>(null)
+export function ProfileContent({ userId, initialRecipes, currentUserId, initialProfile }: ProfileContentProps) {
+  const [profile, setProfile] = useState<ProfileRow | null>(initialProfile || null)
   const [recipes, setRecipes] = useState(initialRecipes)
   const [favoriteRecipes, setFavoriteRecipes] = useState<Recipe[]>([])
   const [activeTab, setActiveTab] = useState<TabType>('recipes')
@@ -45,27 +46,36 @@ export function ProfileContent({ userId, initialRecipes, currentUserId }: Profil
       setCurrentUser({ id: currentUserId })
     }
 
-    // Fetch profile
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-      .then((result) => {
-        if (result.error) {
-          console.error('Error fetching profile:', result.error)
-          return
-        }
-        const data = result.data as ProfileRow | null
-        if (data) {
-          setProfile(data)
-          setUsername(data.username || '')
-          setDisplayName(data.display_name || data.username || '')
-          setBio(data.bio || '')
-          setAvatarUrl(data.avatar_url || '')
-        }
-      })
-  }, [userId, currentUserId])
+    // Only fetch profile if not provided initially
+    if (!initialProfile) {
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+        .then((result) => {
+          if (result.error) {
+            console.error('Error fetching profile:', result.error)
+            return
+          }
+          const data = result.data as ProfileRow | null
+          if (data) {
+            setProfile(data)
+            setUsername(data.username || '')
+            setDisplayName(data.display_name || data.username || '')
+            setBio(data.bio || '')
+            setAvatarUrl(data.avatar_url || '')
+          }
+        })
+    } else {
+      // Use initial profile data
+      setProfile(initialProfile)
+      setUsername(initialProfile.username || '')
+      setDisplayName(initialProfile.display_name || initialProfile.username || '')
+      setBio(initialProfile.bio || '')
+      setAvatarUrl(initialProfile.avatar_url || '')
+    }
+  }, [userId, currentUserId, initialProfile])
 
   const isOwner = (currentUserId || currentUser?.id) === userId
 
