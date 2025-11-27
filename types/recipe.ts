@@ -2,6 +2,7 @@ export interface Ingredient {
   name: string
   amount: string
   unit?: string
+  note?: string // 備註：切碎、常溫、去皮等
 }
 
 export interface RecipeStep {
