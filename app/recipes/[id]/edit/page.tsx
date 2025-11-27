@@ -1,6 +1,6 @@
 import { RecipeForm } from '@/components/recipes/RecipeForm'
 import { getRecipe } from '@/lib/actions/recipes'
-import { createSupabaseClient } from '@/lib/supabase/client'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 
 interface EditRecipePageProps {
@@ -10,12 +10,14 @@ interface EditRecipePageProps {
 }
 
 export default async function EditRecipePage({ params }: EditRecipePageProps) {
-  const supabase = createSupabaseClient()
+  const supabase = await createServerSupabaseClient()
+  
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser()
 
-  if (!user) {
+  if (error || !user) {
     redirect('/auth/login')
   }
 
