@@ -50,6 +50,10 @@ export function RecipeUploadForm() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
+  // 步驟圖片（每個步驟對應一個文件和預覽）
+  const [stepImageFiles, setStepImageFiles] = useState<{ [index: number]: File | null }>({})
+  const [stepImagePreviews, setStepImagePreviews] = useState<{ [index: number]: string | null }>({})
+
   // 食材
   const [ingredients, setIngredients] = useState<Ingredient[]>([
     { name: '', amount: '', unit: '', note: '', category: '' },
@@ -119,16 +123,71 @@ export function RecipeUploadForm() {
     setSteps([...steps, { instruction: '' }])
   }
 
-  // 移除步驟
-  const removeStep = (index: number) => {
-    setSteps(steps.filter((_, i) => i !== index))
-  }
 
   // 更新步驟
   const updateStep = (index: number, field: keyof Step, value: string | number) => {
     const newSteps = [...steps]
     newSteps[index] = { ...newSteps[index], [field]: value }
     setSteps(newSteps)
+  }
+
+  // 處理步驟圖片上傳
+  const handleStepImageChange = (index: number, file: File | null) => {
+    if (file) {
+      setStepImageFiles(prev => ({ ...prev, [index]: file }))
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setStepImagePreviews(prev => ({ ...prev, [index]: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
+    } else {
+      // 移除圖片
+      setStepImageFiles(prev => {
+        const newFiles = { ...prev }
+        delete newFiles[index]
+        return newFiles
+      })
+      setStepImagePreviews(prev => {
+        const newPreviews = { ...prev }
+        delete newPreviews[index]
+        return newPreviews
+      })
+      // 同時清除步驟中的 image_url
+      updateStep(index, 'image_url', '')
+    }
+  }
+
+  // 移除步驟時，同時移除對應的圖片
+  const removeStepWithImages = (index: number) => {
+    // 先移除圖片狀態
+    setStepImageFiles(prev => {
+      const newFiles = { ...prev }
+      delete newFiles[index]
+      // 重新索引後面的圖片
+      Object.keys(newFiles).forEach(key => {
+        const idx = parseInt(key)
+        if (idx > index) {
+          newFiles[idx - 1] = newFiles[idx]
+          delete newFiles[idx]
+        }
+      })
+      return newFiles
+    })
+    setStepImagePreviews(prev => {
+      const newPreviews = { ...prev }
+      delete newPreviews[index]
+      // 重新索引後面的圖片
+      Object.keys(newPreviews).forEach(key => {
+        const idx = parseInt(key)
+        if (idx > index) {
+          newPreviews[idx - 1] = newPreviews[idx]
+          delete newPreviews[idx]
+        }
+      })
+      return newPreviews
+    })
+    // 然後移除步驟
+    setSteps(steps.filter((_, i) => i !== index))
   }
 
   // 添加標籤
@@ -215,15 +274,68 @@ export function RecipeUploadForm() {
         updateState({ progress: 40, message: '跳過圖片上傳' })
       }
 
-      // 步驟 4: 準備資料
-      updateState({ progress: 65, message: '正在準備資料...' })
+      // 步驟 4: 上傳所有步驟的圖片
+      updateState({ progress: 65, message: '正在上傳步驟圖片...' })
+      const stepImageUrls: { [index: number]: string | null } = {}
       
-      const formattedSteps = validSteps.map((step, index) => ({
-        step_number: index + 1,
-        instruction: step.instruction.trim(),
-        image_url: step.image_url || null,
-        timer_minutes: step.timer_minutes || null,
-      }))
+      // 收集所有需要上傳圖片的步驟
+      const stepsWithImages: Array<{ index: number; file: File }> = []
+      steps.forEach((step, index) => {
+        if (stepImageFiles[index]) {
+          stepsWithImages.push({ index, file: stepImageFiles[index]! })
+        } else {
+          // 沒有新圖片，保留原有的 image_url
+          stepImageUrls[index] = step.image_url || null
+        }
+      })
+      
+      // 上傳所有步驟圖片
+      if (stepsWithImages.length > 0) {
+        const uploadProgressPerStep = 10 / stepsWithImages.length
+        
+        await Promise.all(
+          stepsWithImages.map(async ({ index, file }, idx) => {
+            try {
+              updateState({ 
+                progress: 65 + (idx + 1) * uploadProgressPerStep, 
+                message: `正在上傳步驟 ${index + 1} 的圖片...` 
+              })
+              
+              // 壓縮圖片
+              let fileToUpload = file
+              try {
+                fileToUpload = await smartCompressImage(file)
+              } catch (compressError) {
+                console.warn(`步驟 ${index + 1} 圖片壓縮失敗，使用原檔案:`, compressError)
+              }
+              
+              // 上傳圖片
+              const uploadedUrl = await uploadImage(fileToUpload, 'recipes/steps')
+              stepImageUrls[index] = uploadedUrl
+            } catch (error: any) {
+              console.error(`步驟 ${index + 1} 圖片上傳失敗:`, error)
+              // 如果上傳失敗，保留原有的 image_url（如果有的話）
+              stepImageUrls[index] = steps[index].image_url || null
+            }
+          })
+        )
+      }
+      
+      updateState({ progress: 75, message: '步驟圖片上傳完成！' })
+
+      // 步驟 5: 準備資料
+      updateState({ progress: 80, message: '正在準備資料...' })
+      
+      const formattedSteps = validSteps.map((step, index) => {
+        // 找到原始步驟在 steps 陣列中的索引
+        const originalStepIndex = steps.findIndex(s => s === step)
+        return {
+          step_number: index + 1,
+          instruction: step.instruction.trim(),
+          image_url: stepImageUrls[originalStepIndex] || step.image_url || null,
+          timer_minutes: step.timer_minutes || null,
+        }
+      })
 
       const formattedIngredients = validIngredients.map((ing) => ({
         name: ing.name.trim(),
@@ -247,8 +359,8 @@ export function RecipeUploadForm() {
         tags: tags.length > 0 ? tags : [],
       }
 
-      // 步驟 5: 儲存到資料庫
-      updateState({ step: 'saving', progress: 80, message: '正在儲存食譜...' })
+      // 步驟 6: 儲存到資料庫
+      updateState({ step: 'saving', progress: 85, message: '正在儲存食譜...' })
       
       const { data: recipe, error: insertError } = await (supabase
         .from('recipes') as any)
@@ -268,11 +380,11 @@ export function RecipeUploadForm() {
         return
       }
 
-      // 步驟 6: 儲存標籤（如果有的話）
+      // 步驟 7: 儲存標籤（如果有的話）
       // 注意：標籤功能暫時跳過，先確保基本發布功能正常
       // TODO: 實作標籤關聯表功能
 
-      // 步驟 7: 成功！
+      // 步驟 8: 成功！
       updateState({ step: 'success', progress: 100, message: '發布成功！' })
 
       // 2秒後跳轉（使用 window.location 避免 React 狀態問題）
@@ -802,7 +914,7 @@ export function RecipeUploadForm() {
                     {!isSubmitting && (
                       <Button
                         type="button"
-                        onClick={() => removeStep(index)}
+                        onClick={() => removeStepWithImages(index)}
                         variant="outline"
                         size="sm"
                         className="text-red-600 hover:text-red-700"
@@ -820,6 +932,57 @@ export function RecipeUploadForm() {
                     className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     disabled={isSubmitting}
                   />
+
+                  {/* 步驟圖片上傳 */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">步驟圖片（選填）</label>
+                    <div
+                      onClick={() => !isSubmitting && document.getElementById(`step-image-upload-${index}`)?.click()}
+                      className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors ${
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
+                      }`}
+                    >
+                      {stepImagePreviews[index] || step.image_url ? (
+                        <>
+                          <img
+                            src={stepImagePreviews[index] || step.image_url || ''}
+                            alt={`步驟 ${index + 1}`}
+                            className="h-32 w-full rounded-lg object-cover"
+                          />
+                          {!isSubmitting && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleStepImageChange(index, null)
+                              }}
+                              className="mt-2 rounded-md bg-red-500 px-3 py-1 text-sm text-white hover:bg-red-600"
+                            >
+                              移除圖片
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mb-2 h-8 w-8 text-gray-400" />
+                          <p className="text-xs text-gray-600">點擊上傳圖片</p>
+                        </>
+                      )}
+                      <input
+                        id={`step-image-upload-${index}`}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleStepImageChange(index, file)
+                          }
+                        }}
+                        className="hidden"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
