@@ -20,3 +20,4 @@ WHERE table_schema = 'public'
 AND table_name = 'recipes' 
 AND column_name = 'tags';
 
+
