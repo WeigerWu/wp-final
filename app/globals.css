@@ -26,6 +26,25 @@ body {
     rgb(var(--background-start-rgb));
 }
 
+/* 確保所有輸入框和 textarea 的文字顏色為深色 */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  color: rgb(17, 24, 39) !important; /* text-gray-900 */
+}
+
+/* 確保 placeholder 文字顏色正常 */
+input::placeholder,
+textarea::placeholder {
+  color: rgb(156, 163, 175) !important; /* text-gray-400 */
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

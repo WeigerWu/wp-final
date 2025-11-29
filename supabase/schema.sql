@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS public.recipes (
     -- 內容
     ingredients JSONB NOT NULL DEFAULT '[]'::jsonb,
     steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+    tags JSONB DEFAULT '[]'::jsonb,
     -- 營養資訊
     has_nutrition_info BOOLEAN DEFAULT false,
     -- 統計資訊
@@ -310,6 +311,7 @@ CREATE INDEX IF NOT EXISTS idx_recipes_published_at ON public.recipes(published_
 CREATE INDEX IF NOT EXISTS idx_recipes_difficulty ON public.recipes(difficulty);
 CREATE INDEX IF NOT EXISTS idx_recipes_slug ON public.recipes(slug);
 CREATE INDEX IF NOT EXISTS idx_recipes_search_vector ON public.recipes USING GIN(search_vector);
+CREATE INDEX IF NOT EXISTS idx_recipes_tags ON public.recipes USING GIN(tags);
 
 -- Recipe Ratings 索引
 CREATE INDEX IF NOT EXISTS idx_recipe_ratings_recipe_id ON public.recipe_ratings(recipe_id);
