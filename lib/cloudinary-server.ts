@@ -32,3 +32,58 @@ export const deleteImageServer = async (publicId: string): Promise<void> => {
   }
 }
 
+/**
+ * 從 URL 下載圖片並上傳到 Cloudinary
+ * @param imageUrl 圖片 URL
+ * @param folder 上傳資料夾（預設 'recipes'）
+ * @returns Cloudinary 圖片 URL
+ */
+export const uploadImageFromUrl = async (
+  imageUrl: string,
+  folder: string = 'recipes'
+): Promise<string> => {
+  if (typeof window !== 'undefined') {
+    throw new Error('uploadImageFromUrl can only be called from server-side')
+  }
+
+  if (!imageUrl) {
+    throw new Error('Image URL is required')
+  }
+
+  try {
+    // 下載圖片
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.status} ${response.statusText}`)
+    }
+
+    // 將圖片轉換為 buffer
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    // 上傳到 Cloudinary
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: folder,
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) {
+            reject(new Error(`Cloudinary upload failed: ${error.message}`))
+          } else if (result) {
+            resolve(result.secure_url)
+          } else {
+            reject(new Error('Cloudinary upload returned no result'))
+          }
+        }
+      )
+
+      uploadStream.end(buffer)
+    })
+  } catch (error) {
+    console.error('Error uploading image from URL:', error)
+    throw error
+  }
+}
+

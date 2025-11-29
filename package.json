@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:supabase": "node scripts/test-supabase.js"
+    "test:supabase": "node scripts/test-supabase.js",
+    "list:recipes": "node scripts/list-recipes.js",
+    "import:recipes": "node scripts/import-recipes.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
