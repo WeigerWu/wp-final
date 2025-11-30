@@ -1,5 +1,5 @@
 import { RecipeCard } from '@/components/recipes/RecipeCard'
-import { getRecipes } from '@/lib/actions/recipes'
+import { getRecipes } from '@/lib/actions/recipes-server'
 import { SearchBar } from '@/components/recipes/SearchBar'
 import { FilterBar } from '@/components/recipes/FilterBar'
 

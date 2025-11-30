@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Recipe } from '@/types/recipe'
 import { Star, Clock, Users, Heart } from 'lucide-react'
@@ -13,6 +14,8 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe, className }: RecipeCardProps) {
+  const router = useRouter()
+  
   const difficultyColors = {
     easy: 'bg-green-100 text-green-800',
     medium: 'bg-yellow-100 text-yellow-800',
@@ -26,6 +29,15 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
   }
 
   const isPreview = recipe.id === 'preview'
+  
+  const handleCardClick = () => {
+    if (!isPreview && recipe.id) {
+      console.log('Navigating to recipe:', recipe.id)
+      router.push(`/recipes/${recipe.id}`)
+    } else {
+      console.warn('Cannot navigate: isPreview=', isPreview, 'recipe.id=', recipe.id)
+    }
+  }
   
   const cardContent = (
       <div className={cn(
@@ -128,9 +140,9 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
               onClick={(e) => e.stopPropagation()}
               className="mt-3 flex items-center space-x-2 border-t pt-3 hover:opacity-80 transition-opacity"
             >
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600">
                 {recipe.user.username?.[0]?.toUpperCase() || 'U'}
-              </div>
+              </span>
               <span className="text-xs text-gray-600">
                 {recipe.user.username || '匿名用戶'}
               </span>
@@ -145,9 +157,24 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
   }
 
   return (
-    <Link href={`/recipes/${recipe.id}`} className={cn('block', className)}>
+    <div
+      onClick={handleCardClick}
+      className={cn(
+        'block cursor-pointer',
+        className
+      )}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardClick()
+        }
+      }}
+      aria-label={`查看食譜：${recipe.title}`}
+    >
       {cardContent}
-    </Link>
+    </div>
   )
 }
 

@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ProfileContent } from '@/components/profile/ProfileContent'
-import { getRecipes } from '@/lib/actions/recipes'
+import { getRecipes } from '@/lib/actions/recipes-server'
 
 export default async function ProfilePage() {
   const supabase = await createServerSupabaseClient()

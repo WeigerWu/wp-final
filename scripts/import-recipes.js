@@ -12,6 +12,7 @@
 const fs = require('fs')
 const path = require('path')
 const { v2: cloudinary } = require('cloudinary')
+const { translateRecipe } = require('../lib/utils/translate.js')
 
 function loadEnvFile() {
   const envPath = path.join(process.cwd(), '.env')
@@ -471,6 +472,7 @@ async function insertRecipeToDatabase(recipeData, userId) {
  * @param {number} options.recipeId 食譜 ID（用於 id 模式）
  * @param {string} options.userId 用戶 ID
  * @param {boolean} options.uploadImages 是否上傳圖片到 Cloudinary（預設 true）
+ * @param {boolean} options.translate 是否翻譯為中文（預設 true）
  * @returns {Promise<Object>} 導入結果統計
  */
 async function importBatchFromSpoonacular(options) {
@@ -481,6 +483,7 @@ async function importBatchFromSpoonacular(options) {
     recipeId = null,
     userId = null,
     uploadImages = true,
+    translate = true,
   } = options
 
   console.log(`\n📥 開始從 Spoonacular 批量導入食譜...`)
@@ -491,7 +494,8 @@ async function importBatchFromSpoonacular(options) {
     console.log(`   食譜 ID: ${recipeId}`)
   }
   console.log(`   數量: ${number}`)
-  console.log(`   上傳圖片: ${uploadImages ? '是' : '否'}\n`)
+  console.log(`   上傳圖片: ${uploadImages ? '是' : '否'}`)
+  console.log(`   翻譯為中文: ${translate ? '是' : '否'}\n`)
 
   let recipes = []
 
@@ -537,6 +541,26 @@ async function importBatchFromSpoonacular(options) {
     console.log(`\n[${i + 1}/${recipes.length}] 處理食譜: ${recipe.title}`)
 
     try {
+      // 翻譯為中文（如果需要）
+      if (translate) {
+        try {
+          console.log(`   🌐 正在翻譯為中文...`)
+          const translatedRecipe = await translateRecipe(recipe, {
+            translateTitle: true,
+            translateDescription: true,
+            translateIngredients: true,
+            translateSteps: true,
+            translateTags: true,
+            targetLanguage: '繁體中文',
+          })
+          // 將翻譯後的內容合併回原食譜物件
+          Object.assign(recipe, translatedRecipe)
+        } catch (translateError) {
+          console.warn(`   ⚠️  翻譯失敗，使用原始英文內容: ${translateError.message}`)
+          // 翻譯失敗時繼續使用原始英文內容
+        }
+      }
+
       // 上傳圖片到 Cloudinary（如果需要）
       if (uploadImages && recipe.image_url) {
         console.log(`   📸 正在上傳圖片...`)
@@ -624,6 +648,7 @@ function parseArgs() {
     query: '',
     id: null,
     uploadImages: true,
+    translate: true,
   }
 
   for (let i = 0; i < args.length; i++) {
@@ -649,6 +674,8 @@ function parseArgs() {
       }
     } else if (arg === '--no-upload-images') {
       options.uploadImages = false
+    } else if (arg === '--no-translate') {
+      options.translate = false
     } else if (arg === '--help' || arg === '-h') {
       console.log(`
 使用方式:
@@ -661,6 +688,7 @@ function parseArgs() {
   --id <食譜ID>                   導入指定 ID 的食譜
   --number, -n <數量>             導入數量（預設: 10）
   --no-upload-images              不上傳圖片到 Cloudinary
+  --no-translate                  不翻譯為中文（預設會自動翻譯）
   --help, -h                      顯示此說明
 
 範例:
@@ -675,6 +703,9 @@ function parseArgs() {
 
   # 導入隨機食譜但不上傳圖片
   node scripts/import-recipes.js --spoonacular --random --no-upload-images
+
+  # 導入隨機食譜但不翻譯（保留英文）
+  node scripts/import-recipes.js --spoonacular --random --no-translate
       `)
       process.exit(0)
     }
@@ -722,6 +753,7 @@ async function main() {
       recipeId: options.id,
       userId: userId,
       uploadImages: options.uploadImages,
+      translate: options.translate,
     })
 
     if (stats.failed > 0) {

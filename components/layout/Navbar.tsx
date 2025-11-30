@@ -74,23 +74,29 @@ export function Navbar() {
             {!mounted ? (
               // 在 hydration 前顯示登入按鈕，避免不匹配
               <>
-                <Link href="/auth/login">
-                  <Button variant="ghost" size="sm">
-                    登入
-                  </Button>
+                <Link 
+                  href="/auth/login"
+                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                >
+                  登入
                 </Link>
-                <Link href="/auth/signup">
-                  <Button size="sm">註冊</Button>
+                <Link 
+                  href="/auth/signup"
+                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium bg-primary-600 text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                >
+                  註冊
                 </Link>
               </>
             ) : user ? (
               <>
                 <Link
                   href={user ? `/profile/${user.id}` : '/profile'}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600"
+                  className="text-gray-700 hover:text-primary-600"
                 >
-                  <User className="h-5 w-5" />
-                  <span>個人資料</span>
+                  <span className="flex items-center space-x-2">
+                    <User className="h-5 w-5" />
+                    <span>個人資料</span>
+                  </span>
                 </Link>
                 <Button variant="outline" size="sm" onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -99,13 +105,17 @@ export function Navbar() {
               </>
             ) : (
               <>
-                <Link href="/auth/login">
-                  <Button variant="ghost" size="sm">
-                    登入
-                  </Button>
+                <Link 
+                  href="/auth/login"
+                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                >
+                  登入
                 </Link>
-                <Link href="/auth/signup">
-                  <Button size="sm">註冊</Button>
+                <Link 
+                  href="/auth/signup"
+                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium bg-primary-600 text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                >
+                  註冊
                 </Link>
               </>
             )}
@@ -139,11 +149,13 @@ export function Navbar() {
               ))}
               <Link
                 href="/recipes/search"
-                className="flex items-center space-x-2 text-gray-700 hover:text-primary-600"
+                className="text-gray-700 hover:text-primary-600"
                 onClick={() => setIsOpen(false)}
               >
-                <Search className="h-5 w-5" />
-                <span>搜尋</span>
+                <span className="flex items-center space-x-2">
+                  <Search className="h-5 w-5" />
+                  <span>搜尋</span>
+                </span>
               </Link>
               {!mounted ? (
                 // 在 hydration 前顯示登入連結，避免不匹配
@@ -167,11 +179,13 @@ export function Navbar() {
                 <>
                   <Link
                     href={user ? `/profile/${user.id}` : '/profile'}
-                    className="flex items-center space-x-2 text-gray-700 hover:text-primary-600"
+                    className="text-gray-700 hover:text-primary-600"
                     onClick={() => setIsOpen(false)}
                   >
-                    <User className="h-5 w-5" />
-                    <span>個人資料</span>
+                    <span className="flex items-center space-x-2">
+                      <User className="h-5 w-5" />
+                      <span>個人資料</span>
+                    </span>
                   </Link>
                   <button
                     onClick={() => {
