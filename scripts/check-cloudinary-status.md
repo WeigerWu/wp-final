@@ -115,3 +115,6 @@ canvas.toBlob(async (blob) => {
 4. 如果測試失敗，根據錯誤訊息調整設定
 
 
+
+
+
