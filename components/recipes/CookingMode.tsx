@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Recipe } from '@/types/recipe'
-import { Clock, X, Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Clock, X, Check, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import Image from 'next/image'
 
@@ -65,6 +65,7 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
   }
 
   const progress = ((completedSteps.size / steps.length) * 100).toFixed(0)
+  const allStepsCompleted = completedSteps.size === steps.length
 
   return (
     <div className="fixed inset-0 z-50 bg-white">
@@ -182,13 +183,27 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
               <ChevronLeft className="mr-2 h-4 w-4" />
               上一步
             </Button>
-            <Button
-              onClick={goToNextStep}
-              disabled={currentStep === steps.length - 1}
-            >
-              下一步
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
+            {currentStep === steps.length - 1 ? (
+              <Button
+                onClick={onExit}
+                disabled={!allStepsCompleted}
+                className={
+                  allStepsCompleted
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                }
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                完成
+              </Button>
+            ) : (
+              <Button
+                onClick={goToNextStep}
+              >
+                下一步
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -197,25 +212,34 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
       <div className="fixed bottom-0 left-0 right-0 border-t bg-white p-4">
         <div className="container mx-auto">
           <div className="flex space-x-2 overflow-x-auto">
-            {steps.map((step, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentStep(index)}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                  index === currentStep
-                    ? 'border-primary-600 bg-primary-600 text-white'
-                    : completedSteps.has(index)
-                    ? 'border-green-500 bg-green-500 text-white'
-                    : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                }`}
-              >
-                {completedSteps.has(index) ? (
-                  <Check className="h-5 w-5" />
-                ) : (
-                  <span>{index + 1}</span>
-                )}
-              </button>
-            ))}
+            {steps.map((step, index) => {
+              const isCompleted = completedSteps.has(index)
+              const isCurrent = index === currentStep
+              
+              // 如果步驟已完成，優先顯示為綠色（即使它是當前步驟）
+              let buttonClass = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-colors '
+              if (isCompleted) {
+                buttonClass += 'border-green-500 bg-green-500 text-white'
+              } else if (isCurrent) {
+                buttonClass += 'border-primary-600 bg-primary-600 text-white'
+              } else {
+                buttonClass += 'border-gray-300 text-gray-600 hover:border-gray-400'
+              }
+              
+              return (
+                <button
+                  key={index}
+                  onClick={() => setCurrentStep(index)}
+                  className={buttonClass}
+                >
+                  {isCompleted ? (
+                    <Check className="h-5 w-5" />
+                  ) : (
+                    <span>{index + 1}</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
