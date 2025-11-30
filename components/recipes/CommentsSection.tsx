@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { Comment } from '@/types/recipe'
-import { createComment } from '@/lib/actions/comments'
+import { getComments } from '@/lib/actions/comments'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
-import { Send } from 'lucide-react'
+import { MessageSquare, Star } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { ReviewModal } from './ReviewModal'
 
 interface CommentsSectionProps {
   recipeId: string
@@ -15,8 +16,7 @@ interface CommentsSectionProps {
 
 export function CommentsSection({ recipeId, initialComments }: CommentsSectionProps) {
   const [comments, setComments] = useState(initialComments)
-  const [newComment, setNewComment] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const supabase = createSupabaseClient()
   const [currentUser, setCurrentUser] = useState<any>(null)
 
@@ -26,51 +26,37 @@ export function CommentsSection({ recipeId, initialComments }: CommentsSectionPr
     })
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newComment.trim() || !currentUser) return
-
-    setIsSubmitting(true)
-    try {
-      const comment = await createComment(recipeId, newComment.trim())
-      if (comment) {
-        setComments([comment, ...comments])
-        setNewComment('')
-      }
-    } catch (error) {
-      console.error('Error creating comment:', error)
-      alert('留言失敗，請稍後再試')
-    } finally {
-      setIsSubmitting(false)
-    }
+  const handleReviewSuccess = async () => {
+    // 重新載入評論列表
+    const updatedComments = await getComments(recipeId)
+    setComments(updatedComments)
+    // 刷新頁面以更新評分數據
+    window.location.reload()
   }
 
   return (
     <section className="mt-12">
-      <h2 className="mb-6 text-2xl font-bold">留言區</h2>
-
-      {/* Comment Form */}
-      {currentUser ? (
-        <form onSubmit={handleSubmit} className="mb-8">
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="分享你的烹飪心得..."
-            rows={4}
-            className="w-full rounded-md border border-gray-300 p-4 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-          />
-          <div className="mt-2 flex justify-end">
-            <Button type="submit" disabled={isSubmitting || !newComment.trim()}>
-              <Send className="mr-2 h-4 w-4" />
-              發送
-            </Button>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold">評論與留言</h2>
+        {currentUser ? (
+          <Button onClick={() => setIsModalOpen(true)}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            寫評論
+          </Button>
+        ) : (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-600">
+            請先登入以發表評論
           </div>
-        </form>
-      ) : (
-        <div className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-gray-600">
-          請先登入以留言
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* Review Modal */}
+      <ReviewModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        recipeId={recipeId}
+        onSuccess={handleReviewSuccess}
+      />
 
       {/* Comments List */}
       <div className="space-y-6">

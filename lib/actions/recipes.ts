@@ -106,6 +106,30 @@ export async function deleteRecipe(id: string): Promise<boolean> {
   return true
 }
 
+export async function getUserRating(recipeId: string): Promise<number | null> {
+  const supabase = createSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('recipe_ratings')
+    .select('rating')
+    .eq('recipe_id', recipeId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (error || !data) {
+    return null
+  }
+
+  return data.rating
+}
+
 export async function rateRecipe(recipeId: string, rating: number): Promise<boolean> {
   const supabase = createSupabaseClient()
   const {

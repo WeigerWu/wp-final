@@ -6,7 +6,7 @@ import { Star, Clock, Users, Heart, ChefHat, Edit, Trash2 } from 'lucide-react'
 import { formatDate, formatTime } from '@/lib/utils'
 import { useState, useEffect } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
-import { rateRecipe, favoriteRecipe, unfavoriteRecipe, deleteRecipe } from '@/lib/actions/recipes'
+import { favoriteRecipe, unfavoriteRecipe, deleteRecipe } from '@/lib/actions/recipes'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
@@ -19,10 +19,7 @@ interface RecipeDetailProps {
 export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
   const [recipe, setRecipe] = useState(initialRecipe)
   const [isCookingMode, setIsCookingMode] = useState(false)
-  const [rating, setRating] = useState(recipe.user_rating || 0)
   const [isFavorited, setIsFavorited] = useState(recipe.is_favorited || false)
-  const [averageRating, setAverageRating] = useState(recipe.average_rating || 0)
-  const [ratingCount, setRatingCount] = useState(recipe.rating_count || 0)
   const router = useRouter()
   const supabase = createSupabaseClient()
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -45,21 +42,6 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
     easy: '簡單',
     medium: '中等',
     hard: '困難',
-  }
-
-  const handleRate = async (newRating: number) => {
-    try {
-      await rateRecipe(recipe.id, newRating)
-      setRating(newRating)
-      // Recalculate average rating
-      const newAverage = ((averageRating * ratingCount) - rating + newRating) / (ratingCount || 1)
-      setAverageRating(newAverage)
-      if (rating === 0) {
-        setRatingCount(ratingCount + 1)
-      }
-    } catch (error) {
-      console.error('Error rating recipe:', error)
-    }
   }
 
   const handleFavorite = async () => {
@@ -149,11 +131,11 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
 
         {/* Stats */}
         <div className="flex flex-wrap items-center gap-6">
-          {averageRating > 0 && (
+          {recipe.average_rating && recipe.average_rating > 0 && (
             <div className="flex items-center space-x-1">
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              <span className="font-semibold">{averageRating.toFixed(1)}</span>
-              <span className="text-gray-500">({ratingCount})</span>
+              <span className="font-semibold">{recipe.average_rating.toFixed(1)}</span>
+              <span className="text-gray-500">({recipe.rating_count || 0})</span>
             </div>
           )}
           {recipe.prep_time && (
@@ -178,26 +160,6 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
-          {/* Rating */}
-          <div className="flex items-center space-x-1">
-            <span className="text-sm text-gray-600">評分：</span>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                onClick={() => handleRate(star)}
-                disabled={!currentUser}
-                className="disabled:opacity-50"
-              >
-                <Star
-                  className={`h-5 w-5 ${
-                    star <= rating
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
           {/* Favorite */}
           <button
             onClick={handleFavorite}
