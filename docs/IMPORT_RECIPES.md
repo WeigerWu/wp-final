@@ -1,16 +1,5 @@
 # 從網路導入食譜到資料庫
 
-## 什麼是「從 database 塞進去」？
-
-「從 database 塞進去」的意思是：
-1. **從網路抓取食譜資料**（透過 API 或網頁爬蟲）
-2. **直接寫入 Supabase 資料庫**（繞過應用程式介面）
-
-這樣可以：
-- 批量導入大量食譜
-- 自動化資料收集
-- 測試資料庫功能
-
 ## 使用方式
 
 ### 1. 設定環境變數
@@ -20,10 +9,15 @@
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SPOONACULAR_API_KEY=your-spoonacular-api-key
+OPENAI_API_KEY=your-openai-api-key
 ```
 
-> **重要**：`SUPABASE_SERVICE_ROLE_KEY` 可以在 Supabase Dashboard > Settings > API 找到
-> 這個 Key 可以繞過 RLS (Row Level Security) 政策，請妥善保管！
+> **重要**：
+> - `SUPABASE_SERVICE_ROLE_KEY` 可以在 Supabase Dashboard > Settings > API 找到
+> - 這個 Key 可以繞過 RLS (Row Level Security) 政策，請妥善保管！
+> - `SPOONACULAR_API_KEY` 用於從 Spoonacular API 獲取食譜（可在 [Spoonacular](https://spoonacular.com/food-api) 註冊獲取）
+> - `OPENAI_API_KEY` 用於自動翻譯英文食譜為繁體中文（可在 [OpenAI](https://platform.openai.com/api-keys) 獲取）
 
 ### 2. 修改腳本以適配您的資料來源
 
@@ -55,17 +49,59 @@ node scripts/import-recipes.js [食譜URL]
 
 ## 支援的資料來源範例
 
-### 範例 1: 使用公開的食譜 API
+### 範例 1: 使用 Spoonacular API（推薦）
 
-許多網站提供公開的食譜 API，例如：
+腳本已內建支援 Spoonacular API，並會自動將英文內容翻譯為繁體中文。
+
+#### 基本使用
+
+```bash
+# 導入隨機 10 個食譜（自動翻譯為中文）
+node scripts/import-recipes.js --spoonacular --random --number 10
+
+# 根據關鍵字搜尋並導入 5 個食譜
+node scripts/import-recipes.js --spoonacular --search "pasta" --number 5
+
+# 導入指定 ID 的食譜
+node scripts/import-recipes.js --spoonacular --id 123456
+
+# 導入但不翻譯（保留英文）
+node scripts/import-recipes.js --spoonacular --random --no-translate
+
+# 導入但不上傳圖片到 Cloudinary
+node scripts/import-recipes.js --spoonacular --random --no-upload-images
+```
+
+#### 翻譯功能
+
+從 Spoonacular 導入的食譜預設會自動翻譯為繁體中文，包括：
+- 食譜標題
+- 食譜描述
+- 食材名稱
+- 烹飪步驟說明
+- 標籤
+
+翻譯使用 OpenAI GPT-3.5-turbo 模型，確保翻譯品質。如果翻譯失敗，會保留原始英文內容並顯示警告。
+
+#### 命令列選項
+
+- `--spoonacular, -s`: 使用 Spoonacular API
+- `--random, -r`: 導入隨機食譜
+- `--search <關鍵字>`: 搜尋並導入食譜
+- `--id <食譜ID>`: 導入指定 ID 的食譜
+- `--number, -n <數量>`: 導入數量（預設: 10）
+- `--no-upload-images`: 不上傳圖片到 Cloudinary
+- `--no-translate`: 不翻譯為中文（預設會自動翻譯）
+- `--help, -h`: 顯示使用說明
+
+### 範例 2: 使用其他公開的食譜 API
+
+如果您想使用其他 API，可以修改 `fetchRecipeFromWeb` 函數：
 
 ```javascript
 async function fetchRecipeFromWeb(recipeUrl) {
-  // 範例：從 Spoonacular API
-  const apiKey = 'your-api-key'
-  const response = await fetch(
-    `https://api.spoonacular.com/recipes/${recipeId}/information?apiKey=${apiKey}`
-  )
+  // 範例：從其他 API 抓取
+  const response = await fetch(recipeUrl)
   const data = await response.json()
   
   return {
@@ -85,12 +121,12 @@ async function fetchRecipeFromWeb(recipeUrl) {
       instruction: step.step,
     })),
     source_url: data.sourceUrl,
-    source_name: 'Spoonacular',
+    source_name: '來源名稱',
   }
 }
 ```
 
-### 範例 2: 從 JSON 檔案導入
+### 範例 3: 從 JSON 檔案導入
 
 如果您有 JSON 格式的食譜資料：
 
@@ -103,7 +139,7 @@ async function fetchRecipeFromWeb(recipeUrl) {
 }
 ```
 
-### 範例 3: 批量導入多個食譜
+### 範例 4: 批量導入多個食譜
 
 修改腳本以支援批量導入：
 
@@ -217,6 +253,20 @@ A: 腳本會直接使用 `image_url`。如果需要下載圖片並上傳到 Clou
 
 A: 目前腳本會將標籤存儲在 `tags` 欄位（JSONB 陣列）。如果需要使用 `recipe_tags` 關聯表，需要額外處理。
 
+### Q: 翻譯功能如何運作？
+
+A: 當使用 `--spoonacular` 選項時，腳本會自動使用 OpenAI API 將英文內容翻譯為繁體中文。翻譯包括：
+- 食譜標題和描述
+- 所有食材名稱
+- 所有烹飪步驟
+- 所有標籤
+
+翻譯使用批量處理以提高效率，如果某個文本翻譯失敗，會保留原始英文內容。您可以使用 `--no-translate` 選項來跳過翻譯步驟。
+
+### Q: 翻譯需要多少成本？
+
+A: 翻譯使用 OpenAI GPT-3.5-turbo 模型，成本相對較低。一個包含 10 個食材和 10 個步驟的食譜，翻譯成本約為 $0.01-0.02 USD。您可以根據需要調整翻譯選項或使用 `--no-translate` 來節省成本。
+
 ## 進階用法
 
 ### 使用 Puppeteer 爬取動態網頁
@@ -273,4 +323,6 @@ async function fetchRecipeFromWeb(recipeUrl) {
 - `scripts/import-recipes.js` - 主要導入腳本
 - `scripts/list-recipes.js` - 查看資料庫中的食譜
 - `lib/actions/recipes.ts` - 應用程式中的食譜操作函數
+- `lib/utils/translate.js` - 翻譯工具模組（JavaScript 版本）
+- `lib/utils/translate.ts` - 翻譯工具模組（TypeScript 版本）
 

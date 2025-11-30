@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
-import { getRecipes } from '@/lib/actions/recipes'
+import { getRecipes } from '@/lib/actions/recipes-server'
 import { Button } from '@/components/ui/Button'
 
 export default async function HomePage() {
@@ -17,13 +17,17 @@ export default async function HomePage() {
           上傳、分享、探索各式各樣的食譜，與全球烹飪愛好者一起交流
         </p>
         <div className="flex justify-center gap-4">
-          <Link href="/recipes/new">
-            <Button size="lg">上傳食譜</Button>
+          <Link 
+            href="/recipes/new"
+            className="inline-flex items-center justify-center rounded-md bg-primary-600 px-6 py-3 text-lg font-medium text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          >
+            上傳食譜
           </Link>
-          <Link href="/recipes">
-            <Button variant="outline" size="lg">
-              探索食譜
-            </Button>
+          <Link 
+            href="/recipes"
+            className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-6 py-3 text-lg font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+          >
+            探索食譜
           </Link>
         </div>
       </section>
@@ -45,8 +49,11 @@ export default async function HomePage() {
         ) : (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center">
             <p className="text-gray-600">尚無食譜，成為第一個上傳食譜的人吧！</p>
-            <Link href="/recipes/new" className="mt-4 inline-block">
-              <Button>上傳食譜</Button>
+            <Link 
+              href="/recipes/new" 
+              className="mt-4 inline-flex items-center justify-center rounded-md bg-primary-600 px-4 py-2 font-medium text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            >
+              上傳食譜
             </Link>
           </div>
         )}

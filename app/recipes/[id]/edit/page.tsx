@@ -1,5 +1,5 @@
 import { RecipeForm } from '@/components/recipes/RecipeForm'
-import { getRecipe } from '@/lib/actions/recipes'
+import { getRecipe } from '@/lib/actions/recipes-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 

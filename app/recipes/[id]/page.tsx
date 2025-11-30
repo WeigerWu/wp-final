@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getRecipe } from '@/lib/actions/recipes'
+import { getRecipe } from '@/lib/actions/recipes-server'
 import { RecipeDetail } from '@/components/recipes/RecipeDetail'
 import { CommentsSection } from '@/components/recipes/CommentsSection'
 import { getComments } from '@/lib/actions/comments'
@@ -11,10 +11,17 @@ interface RecipePageProps {
 }
 
 export default async function RecipePage({ params }: RecipePageProps) {
-  const recipe = await getRecipe(params.id)
+  const recipeId = params.id
+  
+  if (!recipeId) {
+    notFound()
+  }
+
+  const recipe = await getRecipe(recipeId)
   const comments = recipe ? await getComments(recipe.id) : []
 
   if (!recipe) {
+    console.error(`Recipe not found: ${recipeId}`)
     notFound()
   }
 
