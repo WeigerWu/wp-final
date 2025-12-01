@@ -127,7 +127,7 @@ export async function getUserRating(recipeId: string): Promise<number | null> {
     return null
   }
 
-  return data.rating
+  return (data as { rating: number }).rating
 }
 
 export async function rateRecipe(recipeId: string, rating: number): Promise<boolean> {
