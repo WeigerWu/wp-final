@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import { CookingMode } from './CookingMode'
+import { TagLink } from './TagLink'
 
 interface RecipeDetailProps {
   recipe: Recipe
@@ -249,12 +250,7 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
           <h2 className="mb-4 text-2xl font-bold">標籤</h2>
           <div className="flex flex-wrap gap-2">
             {recipe.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-700"
-              >
-                #{tag}
-              </span>
+              <TagLink key={tag} tag={tag} />
             ))}
           </div>
         </section>

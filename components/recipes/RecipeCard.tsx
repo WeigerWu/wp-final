@@ -7,6 +7,7 @@ import { Recipe } from '@/types/recipe'
 import { Star, Clock, Users, Heart } from 'lucide-react'
 import { formatTime, truncate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { TagLink } from './TagLink'
 
 interface RecipeCardProps {
   recipe: Recipe
@@ -123,12 +124,12 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
           {recipe.tags && recipe.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {recipe.tags.slice(0, 3).map((tag) => (
-                <span
+                <TagLink
                   key={tag}
-                  className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600"
-                >
-                  #{tag}
-                </span>
+                  tag={tag}
+                  className="text-xs px-2 py-1"
+                  onClick={(e) => e.stopPropagation()}
+                />
               ))}
             </div>
           )}
