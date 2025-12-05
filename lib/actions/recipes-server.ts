@@ -11,18 +11,67 @@ interface GetRecipesOptions {
 
 export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recipe[]> {
   const supabase = await createServerSupabaseClient()
+  
+  // Handle tags filtering first if needed
+  let recipeIds: string[] | null = null
+  if (options.tags && options.tags.length > 0) {
+    // For JSONB array field with Chinese characters, we need to use a different approach
+    // The contains() method doesn't work properly with Chinese tags in Supabase
+    // We'll use a workaround: fetch recipes and filter in memory
+    const allRecipeIds = new Set<string>()
+    
+    // Get all recipes first (we'll filter by status/is_public in memory)
+    // This is necessary because contains() doesn't work with Chinese characters
+    const { data: allRecipes, error: fetchError } = await supabase
+      .from('recipes')
+      .select('id, tags, status, is_public')
+    
+    if (fetchError) {
+      console.error('[getRecipes] 獲取食譜列表時發生錯誤:', fetchError)
+    } else if (allRecipes) {
+      console.log(`[getRecipes] 總共獲取到 ${allRecipes.length} 個已發布的食譜`)
+      
+      // Filter recipes that contain any of the selected tags
+      for (const recipe of allRecipes) {
+        const recipeData = recipe as any
+        const recipeTags = (recipeData.tags as string[]) || []
+        const hasMatchingTag = options.tags.some(tag => recipeTags.includes(tag))
+        
+        if (hasMatchingTag) {
+          // Check if recipe is published and public (with default values)
+          const isPublished = recipeData.status === 'published' || recipeData.status === null || recipeData.status === undefined
+          const isPublic = recipeData.is_public === true || recipeData.is_public === null || recipeData.is_public === undefined
+          
+          if (isPublished && isPublic) {
+            allRecipeIds.add(recipeData.id)
+          }
+        }
+      }
+      
+      console.log(`[getRecipes] 找到 ${allRecipeIds.size} 個符合標籤條件的食譜`)
+    }
+    
+    recipeIds = Array.from(allRecipeIds)
+    if (recipeIds.length === 0) {
+      // No recipes found with any of the tags, return empty result
+      console.log('[getRecipes] 沒有找到符合標籤條件的食譜，返回空陣列')
+      return []
+    }
+  }
+
   let query = supabase
     .from('recipes')
     .select('*')
+    // 暫時不過濾 status 和 is_public，先確保標籤過濾能正常工作
+    // 之後可以在應用層面過濾，或者確保所有食譜都有正確的 status/is_public 值
     .order('created_at', { ascending: false })
 
   if (options.userId) {
     query = query.eq('user_id', options.userId)
   }
 
-  if (options.tags && options.tags.length > 0) {
-    // Use textSearch or filter for tags
-    query = query.contains('tags', options.tags)
+  if (recipeIds) {
+    query = query.in('id', recipeIds)
   }
 
   if (options.search) {
