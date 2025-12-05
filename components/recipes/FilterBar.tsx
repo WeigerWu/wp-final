@@ -26,6 +26,9 @@ export function FilterBar() {
     '健康',
     '家常菜',
     '湯品',
+    '早餐',
+    '開胃菜',
+    '主菜'
   ]
 
   const handleTagClick = (tag: string) => {
