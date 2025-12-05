@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test:supabase": "node scripts/test-supabase.js",
     "list:recipes": "node scripts/list-recipes.js",
-    "import:recipes": "node scripts/import-recipes.js"
+    "import:recipes": "node scripts/import-recipes.js",
+    "improve:translations": "node scripts/improve-recipe-translations.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",
