@@ -144,7 +144,7 @@ export async function generateMetadata({ params }: TagPageProps) {
   }
 
   return {
-    title: `#${tag.name} 標籤 - 食譜分享平台`,
+    title: `#${tag.name} 標籤 - I'm cooked`,
     description: tag.description || `查看所有標籤為「${tag.name}」的食譜`,
   }
 }

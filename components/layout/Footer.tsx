@@ -6,7 +6,7 @@ export function Footer() {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div>
-            <h3 className="mb-4 text-lg font-semibold">食譜平台</h3>
+            <h3 className="mb-4 text-lg font-semibold">I'm cooked</h3>
             <p className="text-sm text-gray-600">
               探索、分享、烹飪美味的食譜世界
             </p>
@@ -63,7 +63,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-8 border-t pt-8 text-center text-sm text-gray-600">
-          <p>&copy; {new Date().getFullYear()} 食譜平台. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} I'm cooked. All rights reserved.</p>
         </div>
       </div>
     </footer>
