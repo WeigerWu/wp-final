@@ -86,13 +86,18 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
           {/* Recipe Meta */}
           <div className="flex flex-col space-y-2 text-sm text-gray-500">
             <div className="flex items-center space-x-4">
-              {recipe.average_rating && recipe.average_rating > 0 && (
+              {recipe.rating_count && recipe.rating_count > 0 ? (
                 <div className="flex items-center space-x-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium">{recipe.average_rating.toFixed(1)}</span>
+                  <span className="font-medium">{recipe.average_rating?.toFixed(1) || '0.0'}</span>
                   <span className="text-gray-400">
-                    ({recipe.rating_count || 0})
+                    ({recipe.rating_count}人評分)
                   </span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-1">
+                  <Star className="h-4 w-4 text-gray-300" />
+                  <span className="text-gray-400">0人評分</span>
                 </div>
               )}
               {recipe.favorite_count !== undefined && recipe.favorite_count > 0 && (

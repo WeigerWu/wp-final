@@ -132,11 +132,16 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
 
         {/* Stats */}
         <div className="flex flex-wrap items-center gap-6">
-          {recipe.average_rating && recipe.average_rating > 0 && (
+          {recipe.rating_count && recipe.rating_count > 0 ? (
             <div className="flex items-center space-x-1">
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              <span className="font-semibold">{recipe.average_rating.toFixed(1)}</span>
-              <span className="text-gray-500">({recipe.rating_count || 0})</span>
+              <span className="font-semibold">{recipe.average_rating?.toFixed(1) || '0.0'}</span>
+              <span className="text-gray-500">({recipe.rating_count}人評分)</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-1">
+              <Star className="h-5 w-5 text-gray-300" />
+              <span className="text-gray-500">0人評分</span>
             </div>
           )}
           {recipe.prep_time && (
