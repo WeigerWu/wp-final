@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Recipe } from '@/types/recipe'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { Button } from '@/components/ui/Button'
-import { Edit2, Calendar, Heart } from 'lucide-react'
+import { Edit2, Calendar, Heart, UserPlus, UserMinus, Users } from 'lucide-react'
 import { getUserFavoriteRecipes } from '@/lib/actions/recipes'
+import { followUser, unfollowUser } from '@/lib/actions/follows'
+import { isFollowingClient } from '@/lib/actions/follows-client'
 import { Database } from '@/lib/supabase/types'
 import { formatDate } from '@/lib/utils'
 
@@ -34,6 +38,9 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
   const [bio, setBio] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [isFollowLoading, setIsFollowLoading] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = createSupabaseClient()
@@ -75,9 +82,55 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
       setBio(initialProfile.bio || '')
       setAvatarUrl(initialProfile.avatar_url || '')
     }
+
+    // 監聽 profiles 表的變化（即時更新追蹤者數量）
+    const channel = supabase
+      .channel(`profile:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('Profile updated via Realtime:', payload.new)
+          const updatedProfile = payload.new as ProfileRow
+          setProfile(updatedProfile)
+          // 同時更新表單中的值（如果正在編輯）
+          if (updatedProfile.username) setUsername(updatedProfile.username)
+          if (updatedProfile.display_name) setDisplayName(updatedProfile.display_name)
+          if (updatedProfile.bio !== undefined) setBio(updatedProfile.bio || '')
+          if (updatedProfile.avatar_url !== undefined) setAvatarUrl(updatedProfile.avatar_url || '')
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Realtime subscription active for profile:', userId)
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime subscription error:', err)
+        }
+        if (status === 'TIMED_OUT') {
+          console.error('⏱️ Realtime subscription timed out')
+        }
+      })
+
+    // 清理函數：取消訂閱
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [userId, currentUserId, initialProfile])
 
   const isOwner = (currentUserId || currentUser?.id) === userId
+
+  // Check if current user is following this user
+  useEffect(() => {
+    if (!isOwner && currentUser?.id) {
+      isFollowingClient(userId).then(setIsFollowing)
+    }
+  }, [userId, currentUser?.id, isOwner])
 
   const loadFavoriteRecipes = useCallback(async () => {
     if (!isOwner) return
@@ -135,6 +188,45 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
     } catch (error) {
       console.error('Error updating profile:', error)
       alert('更新失敗，請稍後再試')
+    }
+  }
+
+  const handleFollow = async () => {
+    if (!currentUser?.id) {
+      router.push('/auth/login')
+      return
+    }
+
+    setIsFollowLoading(true)
+    try {
+      if (isFollowing) {
+        await unfollowUser(userId)
+        setIsFollowing(false)
+      } else {
+        await followUser(userId)
+        setIsFollowing(true)
+      }
+
+      // Realtime subscription 會自動更新 profile
+      // 如果 Realtime 沒有立即觸發，作為備用方案等待 1 秒後手動刷新
+      setTimeout(async () => {
+        const supabase = createSupabaseClient()
+        const { data: updatedProfile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+
+        if (updatedProfile && !error) {
+          console.log('Backup refresh: updating profile manually')
+          setProfile(updatedProfile as ProfileRow)
+        }
+      }, 1000)
+    } catch (error) {
+      console.error('Error toggling follow:', error)
+      alert('操作失敗，請稍後再試')
+    } finally {
+      setIsFollowLoading(false)
     }
   }
 
@@ -270,13 +362,32 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                     </h1>
                     <p className="mt-1 text-lg text-gray-600">{handle}</p>
                   </div>
-                  {isOwner && (
+                  {isOwner ? (
                     <Button
                       onClick={() => setIsEditing(true)}
                       className="flex items-center space-x-2"
                     >
                       <Edit2 className="h-4 w-4" />
                       <span>編輯個人資料</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleFollow}
+                      disabled={isFollowLoading}
+                      variant={isFollowing ? 'outline' : 'default'}
+                      className="flex items-center space-x-2"
+                    >
+                      {isFollowing ? (
+                        <>
+                          <UserMinus className="h-4 w-4" />
+                          <span>取消追蹤</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4" />
+                          <span>追蹤</span>
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
@@ -290,6 +401,20 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                     <Calendar className="h-4 w-4" />
                     <span>加入時間：{joinDate}</span>
                   </div>
+                  <Link
+                    href={`/profile/${userId}/followers`}
+                    className="flex items-center space-x-1 hover:text-primary-600 transition-colors cursor-pointer"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>{(profile as any).follower_count || 0} 位追蹤者</span>
+                  </Link>
+                  <Link
+                    href={`/profile/${userId}/following`}
+                    className="flex items-center space-x-1 hover:text-primary-600 transition-colors cursor-pointer"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>追蹤 {(profile as any).following_count || 0} 位用戶</span>
+                  </Link>
                 </div>
               </div>
             )}
