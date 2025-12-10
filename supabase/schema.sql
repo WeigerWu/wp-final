@@ -762,11 +762,37 @@ CREATE TRIGGER update_profile_stats_from_recipes
     AFTER INSERT OR UPDATE OR DELETE ON public.recipes
     FOR EACH ROW EXECUTE FUNCTION update_profile_stats();
 
+-- Function to update profile stats from follows table
+CREATE OR REPLACE FUNCTION update_profile_stats_from_follows()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- 更新被追蹤者（following_id）的 follower_count
+    UPDATE public.profiles
+    SET follower_count = (
+        SELECT COUNT(*) 
+        FROM public.follows 
+        WHERE following_id = COALESCE(NEW.following_id, OLD.following_id)
+    )
+    WHERE id = COALESCE(NEW.following_id, OLD.following_id);
+
+    -- 更新追蹤者（follower_id）的 following_count
+    UPDATE public.profiles
+    SET following_count = (
+        SELECT COUNT(*) 
+        FROM public.follows 
+        WHERE follower_id = COALESCE(NEW.follower_id, OLD.follower_id)
+    )
+    WHERE id = COALESCE(NEW.follower_id, OLD.follower_id);
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
 -- Trigger to update profile stats when follows change
 DROP TRIGGER IF EXISTS update_profile_stats_from_follows ON public.follows;
 CREATE TRIGGER update_profile_stats_from_follows
     AFTER INSERT OR DELETE ON public.follows
-    FOR EACH ROW EXECUTE FUNCTION update_profile_stats();
+    FOR EACH ROW EXECUTE FUNCTION update_profile_stats_from_follows();
 
 -- Function to update tag usage count
 CREATE OR REPLACE FUNCTION update_tag_usage_count()

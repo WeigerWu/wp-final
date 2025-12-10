@@ -1,0 +1,14 @@
+# 臨時調試和測試腳本 - 不需要上傳到 GitHub
+debug-follows-issue.sql
+test-follows-trigger.sql
+test-trigger-with-ids.sql
+verify-follows-trigger.sql
+diagnose-trigger-issue.sql
+get-user-ids.sql
+preview-migration-data.sql
+
+# 已被取代的舊版本腳本
+add-tags-column.sql
+fix-add-tags-column.sql
+fix-follows-trigger.sql
+
