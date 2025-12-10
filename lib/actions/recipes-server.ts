@@ -146,6 +146,25 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
   return recipesWithStats
 }
 
+/**
+ * 獲取指定用戶的食譜總數
+ */
+export async function getRecipeCount(userId: string): Promise<number> {
+  const supabase = await createServerSupabaseClient()
+  
+  const { count, error } = await supabase
+    .from('recipes')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  if (error) {
+    console.error('Error fetching recipe count:', error)
+    return 0
+  }
+
+  return count || 0
+}
+
 export async function getRecipe(id: string): Promise<Recipe | null> {
   if (!id) {
     console.error('getRecipe: No ID provided')

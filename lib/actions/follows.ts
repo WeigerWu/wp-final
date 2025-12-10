@@ -19,10 +19,12 @@ export async function followUser(followingId: string): Promise<boolean> {
     throw new Error('Cannot follow yourself')
   }
 
-  const { error } = await supabase.from('follows').insert({
-    follower_id: user.id,
-    following_id: followingId,
-  })
+  const { error } = await supabase
+    .from('follows')
+    .insert({
+      follower_id: user.id,
+      following_id: followingId,
+    } as any)
 
   if (error) {
     // 如果已經關注過，忽略錯誤
@@ -114,7 +116,7 @@ export async function getFollowers(userId: string, limit: number = 50, offset: n
   }
 
   // Fetch profiles for followers
-  const followerIds = follows.map((f) => f.follower_id)
+  const followerIds = (follows as { follower_id: string; created_at: string }[]).map((f) => f.follower_id)
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, username, display_name, avatar_url, bio')
@@ -124,7 +126,7 @@ export async function getFollowers(userId: string, limit: number = 50, offset: n
     (profiles || []).map((profile: any) => [profile.id, profile])
   )
 
-  return follows.map((follow) => ({
+  return (follows as { follower_id: string; created_at: string }[]).map((follow) => ({
     id: follow.follower_id,
     ...profilesMap.get(follow.follower_id),
     followed_at: follow.created_at,
@@ -154,7 +156,7 @@ export async function getFollowing(userId: string, limit: number = 50, offset: n
   }
 
   // Fetch profiles for following users
-  const followingIds = follows.map((f) => f.following_id)
+  const followingIds = (follows as { following_id: string; created_at: string }[]).map((f) => f.following_id)
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, username, display_name, avatar_url, bio')
@@ -164,7 +166,7 @@ export async function getFollowing(userId: string, limit: number = 50, offset: n
     (profiles || []).map((profile: any) => [profile.id, profile])
   )
 
-  return follows.map((follow) => ({
+  return (follows as { following_id: string; created_at: string }[]).map((follow) => ({
     id: follow.following_id,
     ...profilesMap.get(follow.following_id),
     followed_at: follow.created_at,

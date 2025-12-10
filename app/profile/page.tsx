@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ProfileContent } from '@/components/profile/ProfileContent'
-import { getRecipes } from '@/lib/actions/recipes-server'
+import { getRecipes, getRecipeCount } from '@/lib/actions/recipes-server'
 
 export default async function ProfilePage() {
   const supabase = await createServerSupabaseClient()
@@ -15,14 +15,15 @@ export default async function ProfilePage() {
     redirect('/auth/login')
   }
 
-  // Get profile and recipes in parallel
-  const [profileResult, recipes] = await Promise.all([
+  // Get profile, recipes, and recipe count in parallel
+  const [profileResult, recipes, recipeCount] = await Promise.all([
     supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single(),
     getRecipes({ userId: user.id, limit: 20 }),
+    getRecipeCount(user.id),
   ])
 
   const profile = profileResult.data
@@ -34,6 +35,7 @@ export default async function ProfilePage() {
         initialRecipes={recipes} 
         currentUserId={user.id}
         initialProfile={profile}
+        totalRecipeCount={recipeCount}
       />
     </div>
   )
