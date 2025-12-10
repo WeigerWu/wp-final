@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import { CookingMode } from './CookingMode'
 import { TagLink } from './TagLink'
+import { CategoryLink } from './CategoryLink'
 
 interface RecipeDetailProps {
   recipe: Recipe
@@ -261,9 +262,19 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
         </ol>
       </section>
 
+      {/* Category */}
+      {recipe.category && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-2xl font-bold">分類</h2>
+          <div className="flex flex-wrap gap-2">
+            <CategoryLink category={recipe.category} />
+          </div>
+        </section>
+      )}
+
       {/* Tags */}
       {recipe.tags && recipe.tags.length > 0 && (
-        <section>
+        <section className="mt-12">
           <h2 className="mb-4 text-2xl font-bold">標籤</h2>
           <div className="flex flex-wrap gap-2">
             {recipe.tags.map((tag) => (

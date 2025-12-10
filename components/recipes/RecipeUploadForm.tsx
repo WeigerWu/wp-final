@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { uploadImage } from '@/lib/cloudinary'
@@ -8,6 +8,16 @@ import { smartCompressImage } from '@/lib/image-utils'
 import { Button } from '@/components/ui/Button'
 import { Plus, X, Upload, ArrowLeft, Check, AlertCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  icon: string | null
+  parent_id: string | null
+  sort_order: number
+}
 
 interface Ingredient {
   name: string
@@ -45,6 +55,11 @@ export function RecipeUploadForm() {
   const [prepTime, setPrepTime] = useState('')
   const [cookTime, setCookTime] = useState('')
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | ''>('')
+  const [categoryId, setCategoryId] = useState<string>('')
+  
+  // 分類列表
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
   
   // 圖片
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -354,6 +369,7 @@ export function RecipeUploadForm() {
         prep_time: prepTime ? parseInt(prepTime) : null,
         cook_time: cookTime ? parseInt(cookTime) : null,
         difficulty: difficulty || null,
+        category_id: categoryId || null,
         ingredients: formattedIngredients,
         steps: formattedSteps,
         tags: tags.length > 0 ? tags : [],
@@ -400,6 +416,32 @@ export function RecipeUploadForm() {
       })
     }
   }
+
+  // 獲取分類列表
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const supabase = createSupabaseClient()
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('sort_order', { ascending: true })
+          .order('name', { ascending: true })
+        
+        if (error) {
+          console.error('Error fetching categories:', error)
+        } else {
+          setCategories((data || []) as Category[])
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err)
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+    
+    fetchCategories()
+  }, [])
 
   // 重置狀態
   const resetState = () => {
@@ -655,6 +697,28 @@ export function RecipeUploadForm() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* 分類 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">分類（選填）</label>
+                {loadingCategories ? (
+                  <div className="text-sm text-gray-500">載入分類中...</div>
+                ) : (
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    disabled={isSubmitting}
+                  >
+                    <option value="">選擇分類（選填）</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </section>

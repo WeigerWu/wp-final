@@ -8,6 +8,7 @@ import { Star, Clock, Users, Heart } from 'lucide-react'
 import { formatTime, truncate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { TagLink } from './TagLink'
+import { CategoryLink } from './CategoryLink'
 
 interface RecipeCardProps {
   recipe: Recipe
@@ -124,6 +125,17 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
               )}
             </div>
           </div>
+
+          {/* Category */}
+          {recipe.category && (
+            <div className="mt-3">
+              <CategoryLink
+                category={recipe.category}
+                className="text-xs px-2 py-1"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
 
           {/* Tags */}
           {recipe.tags && recipe.tags.length > 0 && (

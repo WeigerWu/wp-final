@@ -8,6 +8,7 @@ interface RecipesPageProps {
     search?: string
     tags?: string
     difficulty?: string
+    category?: string
     page?: string
   }
 }
@@ -21,6 +22,7 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
   const recipes = await getRecipes({
     search: searchParams.search,
     tags,
+    categoryId: searchParams.category,
     limit,
     offset,
   })

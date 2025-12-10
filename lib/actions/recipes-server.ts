@@ -7,6 +7,7 @@ interface GetRecipesOptions {
   userId?: string
   tags?: string[]
   search?: string
+  categoryId?: string
 }
 
 export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recipe[]> {
@@ -70,6 +71,10 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
     query = query.eq('user_id', options.userId)
   }
 
+  if (options.categoryId) {
+    query = query.eq('category_id', options.categoryId)
+  }
+
   if (recipeIds) {
     query = query.in('id', recipeIds)
   }
@@ -115,6 +120,17 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
     (profiles || []).map((profile: any) => [profile.id, profile])
   )
 
+  // Fetch categories for all recipes
+  const categoryIds = Array.from(new Set(data.map((recipe: any) => recipe.category_id).filter(Boolean)))
+  const { data: categories } = categoryIds.length > 0 ? await supabase
+    .from('categories')
+    .select('id, name, slug, icon')
+    .in('id', categoryIds) : { data: [] }
+
+  const categoriesMap = new Map(
+    (categories || []).map((category: any) => [category.id, category])
+  )
+
   // Fetch ratings and favorites for each recipe
   const recipesWithStats = await Promise.all(
     data.map(async (recipe: any) => {
@@ -136,6 +152,7 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
       return {
         ...recipe,
         user: profilesMap.get(recipe.user_id) || { username: 'Unknown', avatar_url: null },
+        category: recipe.category_id ? categoriesMap.get(recipe.category_id) || null : null,
         average_rating: averageRating,
         rating_count: ratings?.length || 0,
         favorite_count: favorites?.length || 0,
@@ -204,6 +221,17 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
     .eq('id', recipeData.user_id)
     .single()
 
+  // Fetch category
+  let category = null
+  if (recipeData.category_id) {
+    const { data: categoryData } = await supabase
+      .from('categories')
+      .select('id, name, slug, icon')
+      .eq('id', recipeData.category_id)
+      .single()
+    category = categoryData
+  }
+
   // Fetch ratings
   const { data: ratings } = await supabase
     .from('recipe_ratings')
@@ -251,6 +279,7 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
   return {
     ...recipeData,
     user: profile || { username: 'Unknown', avatar_url: null },
+    category: category || null,
     average_rating: averageRating,
     rating_count: ratings?.length || 0,
     favorite_count: favorites?.length || 0,
