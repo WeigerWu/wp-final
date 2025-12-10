@@ -249,9 +249,9 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
       return
     }
 
-    // 驗證文件大小（限制為 5MB）
-    if (file.size > 5 * 1024 * 1024) {
-      alert('圖片檔案大小不能超過 5MB')
+    // 驗證文件大小（限制為 10MB）
+    if (file.size > 10 * 1024 * 1024) {
+      alert('圖片檔案大小不能超過 10MB')
       return
     }
 
@@ -268,7 +268,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
   const handleUpdateProfile = async () => {
     try {
       setIsUploadingAvatar(true)
-      let finalAvatarUrl = avatarUrl
+      let finalAvatarUrl: string | null | undefined = undefined
 
       // 如果有新上傳的圖片，先上傳到 Cloudinary
       if (avatarFile) {
@@ -286,13 +286,14 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
           return
         }
       }
+      // 如果沒有選擇新文件，保持現有的 avatar_url 不變（不傳入該欄位）
 
       const supabase = createSupabaseClient()
       const updateData: Database['public']['Tables']['profiles']['Update'] = {
         username,
         display_name: displayName,
         bio,
-        avatar_url: finalAvatarUrl || null,
+        ...(finalAvatarUrl !== undefined && { avatar_url: finalAvatarUrl }),
       }
       const { error } = await (supabase
         .from('profiles') as any)
@@ -386,9 +387,17 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
             {isEditing && isOwner ? (
               <div className="space-y-2">
                 <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-gray-200 bg-gray-100">
-                  {(avatarPreview || avatarUrl) ? (
+                  {avatarPreview ? (
                     <Image
-                      src={avatarPreview || avatarUrl}
+                      src={avatarPreview}
+                      alt={displayNameToShow}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
+                  ) : profile.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
                       alt={displayNameToShow}
                       fill
                       className="object-cover"
@@ -420,18 +429,9 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                         已選擇: {avatarFile.name}
                       </p>
                     )}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <label className="block text-xs text-gray-500 mb-1">
-                      或輸入圖片網址
-                    </label>
-                    <input
-                      type="url"
-                      value={avatarUrl}
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      支援 JPG、PNG 等圖片格式，檔案大小不超過 10MB
+                    </p>
                   </div>
                 </div>
               </div>
@@ -507,7 +507,6 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                       setDisplayName(profile.display_name || profile.username || '')
                       setUsername(profile.username || '')
                       setBio(profile.bio || '')
-                      setAvatarUrl(profile.avatar_url || '')
                       setAvatarFile(null)
                       setAvatarPreview(null)
                     }}
