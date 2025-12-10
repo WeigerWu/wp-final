@@ -108,9 +108,21 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
               href={`/profile/${recipe.user_id}`}
               className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-600">
-                {recipe.user.username?.[0]?.toUpperCase() || 'U'}
-              </div>
+              {recipe.user.avatar_url ? (
+                <div className="relative h-8 w-8 overflow-hidden rounded-full">
+                  <Image
+                    src={recipe.user.avatar_url}
+                    alt={recipe.user.username || '用戶'}
+                    fill
+                    className="object-cover"
+                    sizes="32px"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-600">
+                  {recipe.user.username?.[0]?.toUpperCase() || 'U'}
+                </div>
+              )}
               <span>{recipe.user.username || '匿名用戶'}</span>
             </Link>
           )}

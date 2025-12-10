@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { Comment } from '@/types/recipe'
 import { getComments } from '@/lib/actions/comments'
 import { createSupabaseClient } from '@/lib/supabase/client'
@@ -64,9 +65,21 @@ export function CommentsSection({ recipeId, initialComments }: CommentsSectionPr
           comments.map((comment) => (
             <div key={comment.id} className="rounded-lg border border-gray-200 bg-white p-4">
               <div className="mb-2 flex items-center space-x-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-600">
-                  {comment.user?.username?.[0]?.toUpperCase() || 'U'}
-                </div>
+                {comment.user?.avatar_url ? (
+                  <div className="relative h-8 w-8 overflow-hidden rounded-full">
+                    <Image
+                      src={comment.user.avatar_url}
+                      alt={comment.user?.username || '用戶'}
+                      fill
+                      className="object-cover"
+                      sizes="32px"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm text-gray-600">
+                    {comment.user?.username?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
                 <div>
                   <div className="font-semibold text-gray-900">
                     {comment.user?.username || '匿名用戶'}

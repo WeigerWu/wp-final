@@ -146,9 +146,21 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
               onClick={(e) => e.stopPropagation()}
               className="mt-3 flex items-center space-x-2 border-t pt-3 hover:opacity-80 transition-opacity"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600">
-                {recipe.user.username?.[0]?.toUpperCase() || 'U'}
-              </span>
+              {recipe.user.avatar_url ? (
+                <div className="relative h-6 w-6 overflow-hidden rounded-full">
+                  <Image
+                    src={recipe.user.avatar_url}
+                    alt={recipe.user.username || '用戶'}
+                    fill
+                    className="object-cover"
+                    sizes="24px"
+                  />
+                </div>
+              ) : (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600">
+                  {recipe.user.username?.[0]?.toUpperCase() || 'U'}
+                </span>
+              )}
               <span className="text-xs text-gray-600">
                 {recipe.user.username || '匿名用戶'}
               </span>
