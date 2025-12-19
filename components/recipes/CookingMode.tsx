@@ -68,13 +68,13 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
   const allStepsCompleted = completedSteps.size === steps.length
 
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900">
       {/* Header */}
-      <div className="border-b bg-gray-50 p-4">
+      <div className="border-b border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">{recipe.title}</h1>
-            <p className="text-sm text-gray-600">
+            <h1 className="text-2xl font-bold dark:text-gray-100">{recipe.title}</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               步驟 {currentStep + 1} / {steps.length}
             </p>
           </div>
@@ -86,13 +86,13 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
       </div>
 
       {/* Progress Bar */}
-      <div className="border-b bg-gray-100">
+      <div className="border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto p-4">
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
             <span>進度：{progress}%</span>
             <span>{completedSteps.size} / {steps.length} 步驟完成</span>
           </div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
             <div
               className="h-full bg-primary-600 transition-all duration-300"
               style={{ width: `${progress}%` }}
@@ -103,11 +103,11 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
 
       {/* Timer */}
       {timer !== null && timeRemaining > 0 && (
-        <div className="border-b bg-yellow-50 p-4">
+        <div className="border-b border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Clock className="h-5 w-5 text-yellow-600" />
-              <span className="font-semibold text-yellow-800">
+              <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+              <span className="font-semibold text-yellow-800 dark:text-yellow-200">
                 計時中：{formatTime(timeRemaining)}
               </span>
             </div>
@@ -130,7 +130,7 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
         <div className="mx-auto max-w-3xl">
           {/* Step Image */}
           {currentStepData.image_url && (
-            <div className="mb-6 relative h-64 w-full overflow-hidden rounded-lg bg-gray-200">
+            <div className="mb-6 relative h-64 w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
               <Image
                 src={currentStepData.image_url}
                 alt={`步驟 ${currentStep + 1}`}
@@ -142,21 +142,21 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
           )}
 
           {/* Step Instruction */}
-          <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold">步驟 {currentStep + 1}</h2>
+              <h2 className="text-2xl font-bold dark:text-gray-100">步驟 {currentStep + 1}</h2>
               <button
                 onClick={() => toggleStepComplete(currentStep)}
                 className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors ${
                   completedSteps.has(currentStep)
                     ? 'border-green-500 bg-green-500 text-white'
-                    : 'border-gray-300 text-gray-400 hover:border-gray-400'
+                    : 'border-gray-300 text-gray-400 hover:border-gray-400 dark:border-gray-600 dark:text-gray-500 dark:hover:border-gray-500'
                 }`}
               >
                 <Check className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-lg text-gray-700">{currentStepData.instruction}</p>
+            <p className="text-lg text-gray-700 dark:text-gray-300">{currentStepData.instruction}</p>
             
             {/* Timer Button */}
             {currentStepData.timer_minutes && (
@@ -209,7 +209,7 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
       </div>
 
       {/* Step List */}
-      <div className="fixed bottom-0 left-0 right-0 border-t bg-white p-4">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto">
           <div className="flex space-x-2 overflow-x-auto">
             {steps.map((step, index) => {
@@ -223,7 +223,7 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
               } else if (isCurrent) {
                 buttonClass += 'border-primary-600 bg-primary-600 text-white'
               } else {
-                buttonClass += 'border-gray-300 text-gray-600 hover:border-gray-400'
+                buttonClass += 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500'
               }
               
               return (
