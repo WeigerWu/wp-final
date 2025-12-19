@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Recipe } from '@/types/recipe'
-import { Star, Clock, Users, Heart, ChefHat, Edit, Trash2 } from 'lucide-react'
+import { Star, Clock, Users, Heart, ChefHat, Edit, Trash2, Download, FileText, File } from 'lucide-react'
 import { formatDate, formatTime } from '@/lib/utils'
 import { useState, useEffect } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { CookingMode } from './CookingMode'
 import { TagLink } from './TagLink'
 import { CategoryLink } from './CategoryLink'
+import { exportRecipeToTextFile, exportRecipeToJSONFile, exportRecipeToPDF } from '@/lib/utils/recipe-export'
 
 interface RecipeDetailProps {
   recipe: Recipe
@@ -68,6 +69,28 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
     } catch (error) {
       console.error('Error deleting recipe:', error)
       alert('刪除失敗，請稍後再試')
+    }
+  }
+
+  const [showExportMenu, setShowExportMenu] = useState(false)
+
+  const handleExportText = () => {
+    exportRecipeToTextFile(recipe)
+    setShowExportMenu(false)
+  }
+
+  const handleExportJSON = () => {
+    exportRecipeToJSONFile(recipe)
+    setShowExportMenu(false)
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      await exportRecipeToPDF(recipe)
+      setShowExportMenu(false)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('PDF 匯出失敗，請稍後再試')
     }
   }
 
@@ -196,6 +219,47 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
             <ChefHat className="mr-2 h-4 w-4" />
             烹飪模式
           </Button>
+          {/* Export Menu */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              匯出
+            </Button>
+            {showExportMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div className="absolute right-0 top-full mt-2 w-48 rounded-md border border-gray-200 bg-white shadow-lg z-20">
+                  <button
+                    onClick={handleExportPDF}
+                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm hover:bg-gray-100 transition-colors border-b border-gray-100"
+                  >
+                    <File className="h-4 w-4 text-red-500" />
+                    <span>匯出為 PDF (.pdf)</span>
+                  </button>
+                  <button
+                    onClick={handleExportText}
+                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm hover:bg-gray-100 transition-colors"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>匯出為文字檔 (.txt)</span>
+                  </button>
+                  <button
+                    onClick={handleExportJSON}
+                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm hover:bg-gray-100 transition-colors"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>匯出為 JSON (.json)</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

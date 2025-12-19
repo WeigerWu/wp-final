@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { uploadImage } from '@/lib/cloudinary'
 import { smartCompressImage } from '@/lib/image-utils'
+import { autoCategorize } from '@/lib/utils/auto-categorize'
+import { saveDraft, loadDraft, clearDraft, hasDraft, getDraftSavedTime, type RecipeDraft } from '@/lib/utils/draft-storage'
 import { Button } from '@/components/ui/Button'
-import { Plus, X, Upload, ArrowLeft, Check, AlertCircle, Loader2 } from 'lucide-react'
+import { Plus, X, Upload, ArrowLeft, Check, AlertCircle, Loader2, Sparkles, Save, FileText } from 'lucide-react'
 import Link from 'next/link'
 
 interface Category {
@@ -60,6 +62,9 @@ export function RecipeUploadForm() {
   // 分類列表
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(true)
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null)
+  const [isAutoSuggested, setIsAutoSuggested] = useState(false)
+  const userSelectedCategoryRef = useRef(false) // 追蹤用戶是否手動選擇過分類
   
   // 圖片
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -403,6 +408,9 @@ export function RecipeUploadForm() {
       // 步驟 8: 成功！
       updateState({ step: 'success', progress: 100, message: '發布成功！' })
 
+      // 清除草稿
+      clearDraft()
+
       // 2秒後跳轉（使用 window.location 避免 React 狀態問題）
       setTimeout(() => {
         router.push('/recipes')
@@ -443,6 +451,112 @@ export function RecipeUploadForm() {
     fetchCategories()
   }, [])
 
+  // 載入草稿（僅在首次載入時執行一次）
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  useEffect(() => {
+    if (draftLoaded) return
+    
+    const draft = loadDraft()
+    if (draft) {
+      // 詢問用戶是否要恢復草稿
+      const shouldLoad = window.confirm(
+        `偵測到未完成的草稿（保存於 ${new Date(draft.savedAt).toLocaleString('zh-TW')}），是否要恢復？`
+      )
+      
+      if (shouldLoad) {
+        setTitle(draft.title)
+        setDescription(draft.description)
+        setServings(draft.servings)
+        setPrepTime(draft.prepTime)
+        setCookTime(draft.cookTime)
+        setDifficulty(draft.difficulty)
+        setCategoryId(draft.categoryId)
+        setIngredients(draft.ingredients.length > 0 ? draft.ingredients : [{ name: '', amount: '', unit: '', note: '', category: '' }])
+        setSteps(draft.steps.length > 0 ? draft.steps : [{ instruction: '' }])
+        setTags(draft.tags)
+        setCustomCategories(draft.customCategories)
+        setImagePreview(draft.imagePreview)
+        setStepImagePreviews(draft.stepImagePreviews)
+      } else {
+        // 用戶選擇不恢復，清除草稿
+        clearDraft()
+      }
+    }
+    setDraftLoaded(true)
+  }, [draftLoaded])
+
+  // 自動分類：當標題、描述或標籤變化時，自動建議分類
+  useEffect(() => {
+    // 如果用戶已經手動選擇過分類，則不再自動建議
+    if (userSelectedCategoryRef.current || categories.length === 0) {
+      return
+    }
+
+    // 如果標題為空或太短，不進行自動分類
+    if (!title || title.trim().length < 2) {
+      setSuggestedCategoryId(null)
+      setIsAutoSuggested(false)
+      // 只有在用戶還沒選擇過時，才清除自動建議的分類
+      if (!categoryId) {
+        setCategoryId('')
+      }
+      return
+    }
+
+    // 計算建議的分類
+    const suggestedId = autoCategorize(title, description, tags, categories)
+    
+    if (suggestedId) {
+      setSuggestedCategoryId(suggestedId)
+      setIsAutoSuggested(true)
+      // 只有在用戶還沒手動選擇過分類時，才自動設置
+      if (!userSelectedCategoryRef.current && !categoryId) {
+        setCategoryId(suggestedId)
+      }
+    } else {
+      setSuggestedCategoryId(null)
+      setIsAutoSuggested(false)
+    }
+  }, [title, description, tags, categories, categoryId])
+
+  // 自動儲存草稿（當表單內容變化時）
+  const saveDraftTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => {
+    // 如果是首次載入，不自動儲存
+    if (!draftLoaded) return
+    
+    // 清除之前的定時器
+    if (saveDraftTimeoutRef.current) {
+      clearTimeout(saveDraftTimeoutRef.current)
+    }
+    
+    // 延遲 2 秒後儲存（避免頻繁寫入）
+    saveDraftTimeoutRef.current = setTimeout(() => {
+      const draft: Omit<RecipeDraft, 'savedAt'> = {
+        title,
+        description,
+        servings,
+        prepTime,
+        cookTime,
+        difficulty,
+        categoryId,
+        imagePreview,
+        ingredients,
+        steps,
+        stepImagePreviews,
+        tags,
+        customCategories,
+      }
+      saveDraft(draft)
+    }, 2000)
+    
+    return () => {
+      if (saveDraftTimeoutRef.current) {
+        clearTimeout(saveDraftTimeoutRef.current)
+      }
+    }
+  }, [title, description, servings, prepTime, cookTime, difficulty, categoryId, imagePreview, ingredients, steps, stepImagePreviews, tags, customCategories, draftLoaded])
+
   // 重置狀態
   const resetState = () => {
     updateState({ step: 'idle', progress: 0, message: '', error: undefined })
@@ -467,8 +581,30 @@ export function RecipeUploadForm() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">上傳食譜</h1>
-          <p className="mt-2 text-gray-600">分享你的美味料理</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">上傳食譜</h1>
+              <p className="mt-2 text-gray-600">分享你的美味料理</p>
+            </div>
+            {hasDraft() && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Save className="h-4 w-4" />
+                <span>
+                  草稿已自動保存
+                  {(() => {
+                    const savedTime = getDraftSavedTime()
+                    if (savedTime) {
+                      const minutesAgo = Math.floor((Date.now() - savedTime.getTime()) / 60000)
+                      if (minutesAgo < 1) return '（剛剛）'
+                      if (minutesAgo < 60) return `（${minutesAgo} 分鐘前）`
+                      return `（${savedTime.toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}）`
+                    }
+                    return ''
+                  })()}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 提交狀態顯示 */}
@@ -701,23 +837,46 @@ export function RecipeUploadForm() {
 
               {/* 分類 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">分類（選填）</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">分類（選填）</label>
+                  {isAutoSuggested && suggestedCategoryId && (
+                    <span className="flex items-center gap-1 text-xs text-primary-600">
+                      <Sparkles className="h-3 w-3" />
+                      <span>已自動建議</span>
+                    </span>
+                  )}
+                </div>
                 {loadingCategories ? (
                   <div className="text-sm text-gray-500">載入分類中...</div>
                 ) : (
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">選擇分類（選填）</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <select
+                      value={categoryId}
+                      onChange={(e) => {
+                        setCategoryId(e.target.value)
+                        userSelectedCategoryRef.current = true
+                        setIsAutoSuggested(false)
+                      }}
+                      className={`w-full rounded-md border px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                        isAutoSuggested && suggestedCategoryId === categoryId
+                          ? 'border-primary-300 bg-primary-50'
+                          : 'border-gray-300'
+                      }`}
+                      disabled={isSubmitting}
+                    >
+                      <option value="">選擇分類（選填）</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                    {isAutoSuggested && suggestedCategoryId && suggestedCategoryId === categoryId && (
+                      <p className="mt-1 text-xs text-primary-600">
+                        系統根據您的食譜內容自動建議此分類，您仍可手動更改
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
