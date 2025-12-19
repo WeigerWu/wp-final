@@ -565,13 +565,13 @@ export function RecipeUploadForm() {
   const isSubmitting = submissionState.step !== 'idle' && submissionState.step !== 'success' && submissionState.step !== 'error'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white">
+      <div className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto px-4 py-4">
           <Link 
             href="/recipes" 
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <ArrowLeft className="h-5 w-5" />
             <span>返回食譜列表</span>
@@ -583,11 +583,11 @@ export function RecipeUploadForm() {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">上傳食譜</h1>
-              <p className="mt-2 text-gray-600">分享你的美味料理</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">上傳食譜</h1>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">分享你的美味料理</p>
             </div>
             {hasDraft() && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <Save className="h-4 w-4" />
                 <span>
                   草稿已自動保存
@@ -657,7 +657,7 @@ export function RecipeUploadForm() {
                         style={{ width: `${submissionState.progress}%` }}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {submissionState.progress}% 完成
                     </p>
                   </div>
@@ -695,12 +695,12 @@ export function RecipeUploadForm() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 基本資訊區塊 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h2 className="mb-4 text-xl font-bold">① 基本資訊</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">
                   食譜標題 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -708,30 +708,30 @@ export function RecipeUploadForm() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="例如：奶油蒜香雞胸"
-                  className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                   required
                   disabled={isSubmitting}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">簡短介紹</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">簡短介紹</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   placeholder="例如：上班族 15 分鐘就能完成的奶油蒜香雞胸。"
-                  className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                   disabled={isSubmitting}
                 />
               </div>
 
               {/* 封面圖片 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">封面圖片</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">封面圖片</label>
                 <div
                   onClick={() => !isSubmitting && document.getElementById('image-upload')?.click()}
-                  className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors ${
+                  className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors dark:border-gray-600 dark:bg-gray-700 ${
                     isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
                   }`}
                 >
@@ -758,8 +758,8 @@ export function RecipeUploadForm() {
                     </>
                   ) : (
                     <>
-                      <Upload className="mb-4 h-12 w-12 text-gray-400" />
-                      <p className="text-sm text-gray-600">點擊上傳封面圖片</p>
+                      <Upload className="mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
+                      <p className="text-sm text-gray-600 dark:text-gray-400">點擊上傳封面圖片</p>
                     </>
                   )}
                   <input
@@ -776,38 +776,38 @@ export function RecipeUploadForm() {
               {/* 份量與時間 */}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">份量（人份）</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">份量（人份）</label>
                   <input
                     type="number"
                     value={servings}
                     onChange={(e) => setServings(e.target.value)}
                     min="1"
                     placeholder="2"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">準備時間（分鐘）</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">準備時間（分鐘）</label>
                   <input
                     type="number"
                     value={prepTime}
                     onChange={(e) => setPrepTime(e.target.value)}
                     min="1"
                     placeholder="10"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">料理時間（分鐘）</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">料理時間（分鐘）</label>
                   <input
                     type="number"
                     value={cookTime}
                     onChange={(e) => setCookTime(e.target.value)}
                     min="1"
                     placeholder="15"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -815,7 +815,7 @@ export function RecipeUploadForm() {
 
               {/* 難度 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">難度</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">難度</label>
                 <div className="flex gap-2">
                   {(['easy', 'medium', 'hard'] as const).map((diff) => (
                     <button
@@ -838,16 +838,16 @@ export function RecipeUploadForm() {
               {/* 分類 */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700">分類（選填）</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">分類（選填）</label>
                   {isAutoSuggested && suggestedCategoryId && (
-                    <span className="flex items-center gap-1 text-xs text-primary-600">
+                    <span className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400">
                       <Sparkles className="h-3 w-3" />
                       <span>已自動建議</span>
                     </span>
                   )}
                 </div>
                 {loadingCategories ? (
-                  <div className="text-sm text-gray-500">載入分類中...</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">載入分類中...</div>
                 ) : (
                   <>
                     <select
@@ -857,9 +857,9 @@ export function RecipeUploadForm() {
                         userSelectedCategoryRef.current = true
                         setIsAutoSuggested(false)
                       }}
-                      className={`w-full rounded-md border px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      className={`w-full rounded-md border px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 ${
                         isAutoSuggested && suggestedCategoryId === categoryId
-                          ? 'border-primary-300 bg-primary-50'
+                          ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/20'
                           : 'border-gray-300'
                       }`}
                       disabled={isSubmitting}
@@ -872,7 +872,7 @@ export function RecipeUploadForm() {
                       ))}
                     </select>
                     {isAutoSuggested && suggestedCategoryId && suggestedCategoryId === categoryId && (
-                      <p className="mt-1 text-xs text-primary-600">
+                      <p className="mt-1 text-xs text-primary-600 dark:text-primary-400">
                         系統根據您的食譜內容自動建議此分類，您仍可手動更改
                       </p>
                     )}
@@ -883,13 +883,13 @@ export function RecipeUploadForm() {
           </section>
 
           {/* 食材列表 - 保持原有設計但添加 disabled 狀態 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4">
               <h2 className="mb-4 text-xl font-bold">② 食材列表</h2>
               
               {/* 自定義分類輸入 */}
               <div className="mb-4 rounded-lg bg-gray-50 p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">自定義分類</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">自定義分類</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -902,7 +902,7 @@ export function RecipeUploadForm() {
                       }
                     }}
                     placeholder="輸入新分類名稱"
-                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                   <Button
@@ -981,7 +981,7 @@ export function RecipeUploadForm() {
 
                 if (categoriesWithIngredients.length === 0) {
                   return (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       點擊上方按鈕開始添加食材
                     </div>
                   )
@@ -1070,7 +1070,7 @@ export function RecipeUploadForm() {
                               <select
                                 value={ingredient.category}
                                 onChange={(e) => updateIngredient(index, 'category', e.target.value)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                                 disabled={isSubmitting}
                               >
                                 <option value="">無分類</option>
@@ -1113,7 +1113,7 @@ export function RecipeUploadForm() {
           </section>
 
           {/* 步驟列表 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold">③ 步驟列表</h2>
               {!isSubmitting && (
@@ -1152,16 +1152,16 @@ export function RecipeUploadForm() {
                     onChange={(e) => updateStep(index, 'instruction', e.target.value)}
                     rows={3}
                     placeholder="例如：將雞胸肉切成適口大小，撒上鹽與胡椒稍微醃 10 分鐘。"
-                    className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
 
                   {/* 步驟圖片上傳 */}
                   <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">步驟圖片（選填）</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">步驟圖片（選填）</label>
                     <div
                       onClick={() => !isSubmitting && document.getElementById(`step-image-upload-${index}`)?.click()}
-                      className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors ${
+                      className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors dark:border-gray-600 dark:bg-gray-700 ${
                         isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
                       }`}
                     >
@@ -1187,8 +1187,8 @@ export function RecipeUploadForm() {
                         </>
                       ) : (
                         <>
-                          <Upload className="mb-2 h-8 w-8 text-gray-400" />
-                          <p className="text-xs text-gray-600">點擊上傳圖片</p>
+                          <Upload className="mb-2 h-8 w-8 text-gray-400 dark:text-gray-500" />
+                          <p className="text-xs text-gray-600 dark:text-gray-400">點擊上傳圖片</p>
                         </>
                       )}
                       <input
@@ -1229,12 +1229,12 @@ export function RecipeUploadForm() {
           </section>
 
           {/* 標籤 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h2 className="mb-4 text-xl font-bold">④ 標籤</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">常用標籤</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">常用標籤</label>
                 <div className="flex flex-wrap gap-2">
                   {commonTags.map((tag) => (
                     <button
@@ -1255,7 +1255,7 @@ export function RecipeUploadForm() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">自訂標籤</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">自訂標籤</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -1271,7 +1271,7 @@ export function RecipeUploadForm() {
                       }
                     }}
                     placeholder="輸入標籤並按 Enter"
-                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                   <Button

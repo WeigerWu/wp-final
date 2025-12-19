@@ -26,7 +26,7 @@ body {
     rgb(var(--background-start-rgb));
 }
 
-/* 確保所有輸入框和 textarea 的文字顏色為深色 */
+/* 確保所有輸入框和 textarea 的文字顏色 */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -36,13 +36,38 @@ input[type="tel"],
 input[type="url"],
 textarea,
 select {
-  color: rgb(17, 24, 39) !important; /* text-gray-900 */
+  color: rgb(17, 24, 39); /* text-gray-900 */
+  background-color: white;
+}
+
+/* 深色模式下的輸入框樣式 */
+@media (prefers-color-scheme: dark) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    color: rgb(243, 244, 246); /* text-gray-100 */
+    background-color: rgb(31, 41, 55); /* bg-gray-800 */
+  }
 }
 
 /* 確保 placeholder 文字顏色正常 */
 input::placeholder,
 textarea::placeholder {
-  color: rgb(156, 163, 175) !important; /* text-gray-400 */
+  color: rgb(156, 163, 175); /* text-gray-400 */
+}
+
+/* 深色模式下的 placeholder */
+@media (prefers-color-scheme: dark) {
+  input::placeholder,
+  textarea::placeholder {
+    color: rgb(156, 163, 175); /* text-gray-400 */
+  }
 }
 
 @layer utilities {
