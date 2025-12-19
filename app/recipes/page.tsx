@@ -8,6 +8,7 @@ interface RecipesPageProps {
     search?: string
     tags?: string
     difficulty?: string
+    category?: string
     page?: string
   }
 }
@@ -21,6 +22,7 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
   const recipes = await getRecipes({
     search: searchParams.search,
     tags,
+    categoryId: searchParams.category,
     limit,
     offset,
   })
@@ -28,8 +30,8 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold">探索食譜</h1>
-        <p className="text-gray-600">發現來自世界各地的美味食譜</p>
+        <h1 className="mb-4 text-3xl font-bold dark:text-gray-100">探索食譜</h1>
+        <p className="text-gray-600 dark:text-gray-400">發現來自世界各地的美味食譜</p>
       </div>
 
       {/* Search and Filter */}
@@ -46,8 +48,8 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
           ))}
         </div>
       ) : (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center">
-          <p className="text-gray-600">找不到符合條件的食譜</p>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800">
+          <p className="text-gray-600 dark:text-gray-400">找不到符合條件的食譜</p>
         </div>
       )}
 
@@ -58,14 +60,14 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
             {page > 1 && (
               <a
                 href={`/recipes?page=${page - 1}${searchParams.search ? `&search=${searchParams.search}` : ''}${searchParams.tags ? `&tags=${searchParams.tags}` : ''}`}
-                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 上一頁
               </a>
             )}
             <a
               href={`/recipes?page=${page + 1}${searchParams.search ? `&search=${searchParams.search}` : ''}${searchParams.tags ? `&tags=${searchParams.tags}` : ''}`}
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               下一頁
             </a>

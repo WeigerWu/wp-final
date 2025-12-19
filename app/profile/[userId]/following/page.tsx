@@ -26,10 +26,13 @@ export default async function FollowingPage({ params }: FollowingPageProps) {
     notFound()
   }
 
+  // Type assertion for profile
+  const profileData = profile as { username?: string; display_name?: string }
+
   // Get following
   const following = await getFollowing(userId, 100)
 
-  const displayName = profile.display_name || profile.username || '用戶'
+  const displayName = profileData.display_name || profileData.username || '用戶'
 
   return (
     <div className="container mx-auto px-4 py-8">

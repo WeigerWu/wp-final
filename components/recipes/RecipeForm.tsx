@@ -11,32 +11,64 @@ import { Button } from '@/components/ui/Button'
 import { Plus, X, Upload } from 'lucide-react'
 import { Recipe } from '@/types/recipe'
 
-const recipeSchema = z.object({
-  title: z.string().min(1, '標題為必填'),
-  description: z.string().optional(),
-  servings: z.number().min(1).optional(),
-  prep_time: z.number().min(1).optional(),
-  cook_time: z.number().min(1).optional(),
-  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
-  tags: z.array(z.string()).optional(),
-  ingredients: z.array(
-    z.object({
-      name: z.string().min(1, '食材名稱為必填'),
-      amount: z.string().min(1, '數量為必填'),
-      unit: z.string().optional(),
+// 創建驗證 schema 的函數，根據模式決定驗證規則
+const createRecipeSchema = (mode: 'create' | 'edit' = 'create') => {
+  // 在編輯模式下，所有欄位都是可選的
+  if (mode === 'edit') {
+    return z.object({
+      title: z.string().optional(),
+      description: z.string().optional(),
+      servings: z.number().min(1).optional().nullable(),
+      prep_time: z.number().min(1).optional().nullable(),
+      cook_time: z.number().min(1).optional().nullable(),
+      difficulty: z.enum(['easy', 'medium', 'hard']).optional().nullable(),
+      tags: z.array(z.string()).optional(),
+      ingredients: z.array(
+        z.object({
+          name: z.string().optional(),
+          amount: z.string().optional(),
+          unit: z.string().optional(),
+        })
+      ).optional(),
+      steps: z.array(
+        z.object({
+          step_number: z.number(),
+          instruction: z.string().optional(),
+          image_url: z.string().optional().nullable(),
+          timer_minutes: z.number().optional().nullable(),
+        })
+      ).optional(),
     })
-  ),
-  steps: z.array(
-    z.object({
-      step_number: z.number(),
-      instruction: z.string().min(1, '步驟說明為必填'),
-      image_url: z.string().optional(),
-      timer_minutes: z.number().optional(),
-    })
-  ),
-})
+  }
+  
+  // 創建模式下的驗證規則（保持原有規則）
+  return z.object({
+    title: z.string().min(1, '標題為必填'),
+    description: z.string().optional(),
+    servings: z.number().min(1).optional(),
+    prep_time: z.number().min(1).optional(),
+    cook_time: z.number().min(1).optional(),
+    difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
+    tags: z.array(z.string()).optional(),
+    ingredients: z.array(
+      z.object({
+        name: z.string().min(1, '食材名稱為必填'),
+        amount: z.string().min(1, '數量為必填'),
+        unit: z.string().optional(),
+      })
+    ),
+    steps: z.array(
+      z.object({
+        step_number: z.number(),
+        instruction: z.string().min(1, '步驟說明為必填'),
+        image_url: z.string().optional(),
+        timer_minutes: z.number().optional(),
+      })
+    ),
+  })
+}
 
-type RecipeFormData = z.infer<typeof recipeSchema>
+type RecipeFormData = z.infer<ReturnType<typeof createRecipeSchema>>
 
 interface RecipeFormProps {
   recipe?: Recipe
@@ -52,6 +84,8 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
   )
   const [stepImages, setStepImages] = useState<{ [key: number]: File | null }>({})
 
+  const recipeSchema = createRecipeSchema(mode)
+  
   const {
     register,
     handleSubmit,
@@ -68,13 +102,17 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
       cook_time: recipe?.cook_time || undefined,
       difficulty: recipe?.difficulty || undefined,
       tags: recipe?.tags || [],
-      ingredients: recipe?.ingredients || [{ name: '', amount: '', unit: '' }],
-      steps: recipe?.steps || [{ step_number: 1, instruction: '' }],
+      ingredients: recipe?.ingredients && recipe.ingredients.length > 0 
+        ? recipe.ingredients 
+        : mode === 'create' ? [{ name: '', amount: '', unit: '' }] : [],
+      steps: recipe?.steps && recipe.steps.length > 0
+        ? recipe.steps
+        : mode === 'create' ? [{ step_number: 1, instruction: '' }] : [],
     },
   })
 
-  const ingredients = watch('ingredients')
-  const steps = watch('steps')
+  const ingredients = watch('ingredients') || []
+  const steps = watch('steps') || []
   const tags = watch('tags') || []
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,30 +135,34 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
   }
 
   const addIngredient = () => {
+    const currentIngredients = ingredients || []
     setValue('ingredients', [
-      ...ingredients,
+      ...currentIngredients,
       { name: '', amount: '', unit: '' },
     ])
   }
 
   const removeIngredient = (index: number) => {
+    const currentIngredients = ingredients || []
     setValue(
       'ingredients',
-      ingredients.filter((_, i) => i !== index)
+      currentIngredients.filter((_, i) => i !== index)
     )
   }
 
   const addStep = () => {
+    const currentSteps = steps || []
     setValue('steps', [
-      ...steps,
-      { step_number: steps.length + 1, instruction: '' },
+      ...currentSteps,
+      { step_number: currentSteps.length + 1, instruction: '' },
     ])
   }
 
   const removeStep = (index: number) => {
+    const currentSteps = steps || []
     setValue(
       'steps',
-      steps.filter((_, i) => i !== index).map((step, i) => ({
+      currentSteps.filter((_, i) => i !== index).map((step, i) => ({
         ...step,
         step_number: i + 1,
       }))
@@ -146,9 +188,10 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
         imageUrl = await uploadImage(imageFile, 'recipes')
       }
 
-      // Upload step images
+      // 處理步驟數據（在編輯模式下可能為空）
+      const stepsToProcess = data.steps || recipe?.steps || []
       const stepsWithImages = await Promise.all(
-        data.steps.map(async (step, index) => {
+        stepsToProcess.map(async (step, index) => {
           if (stepImages[index]) {
             const stepImageUrl = await uploadImage(stepImages[index]!, 'recipe-steps')
             return { ...step, image_url: stepImageUrl }
@@ -157,10 +200,38 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
         })
       )
 
-      const recipeData = {
+      // 在編輯模式下，過濾掉空值，只提交有變更的欄位
+      const recipeData: any = {
         ...data,
-        image_url: imageUrl,
-        steps: stepsWithImages,
+        image_url: imageUrl || recipe?.image_url,
+        steps: stepsWithImages.length > 0 ? stepsWithImages : stepsToProcess,
+      }
+
+      // 過濾空的食材和步驟（在編輯模式下）
+      if (mode === 'edit') {
+        if (recipeData.ingredients && Array.isArray(recipeData.ingredients)) {
+          recipeData.ingredients = recipeData.ingredients.filter(
+            (ing: any) => ing && (ing.name || ing.amount)
+          )
+          // 如果過濾後為空，保留原來的食材
+          if (recipeData.ingredients.length === 0 && recipe?.ingredients) {
+            recipeData.ingredients = recipe.ingredients
+          }
+        } else if (!recipeData.ingredients && recipe?.ingredients) {
+          recipeData.ingredients = recipe.ingredients
+        }
+        
+        if (recipeData.steps && Array.isArray(recipeData.steps)) {
+          recipeData.steps = recipeData.steps.filter(
+            (step: any) => step && step.instruction
+          )
+          // 如果過濾後為空，保留原來的步驟
+          if (recipeData.steps.length === 0 && recipe?.steps) {
+            recipeData.steps = recipe.steps
+          }
+        } else if (!recipeData.steps && recipe?.steps) {
+          recipeData.steps = recipe.steps
+        }
       }
 
       if (mode === 'edit' && recipe) {
@@ -186,7 +257,7 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
         <h2 className="text-2xl font-bold">基本資訊</h2>
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            標題 <span className="text-red-500">*</span>
+            標題 {mode === 'create' && <span className="text-red-500">*</span>}
           </label>
           <input
             type="text"
@@ -370,7 +441,7 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
             新增步驟
           </Button>
         </div>
-        {steps.map((step, index) => (
+        {(steps || []).map((step, index) => (
           <div key={index} className="rounded-lg border border-gray-200 p-4">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold">步驟 {index + 1}</h3>

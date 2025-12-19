@@ -1,13 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { uploadImage } from '@/lib/cloudinary'
 import { smartCompressImage } from '@/lib/image-utils'
+import { autoCategorize } from '@/lib/utils/auto-categorize'
+import { saveDraft, loadDraft, clearDraft, hasDraft, getDraftSavedTime, type RecipeDraft } from '@/lib/utils/draft-storage'
 import { Button } from '@/components/ui/Button'
-import { Plus, X, Upload, ArrowLeft, Check, AlertCircle, Loader2 } from 'lucide-react'
+import { Plus, X, Upload, ArrowLeft, Check, AlertCircle, Loader2, Sparkles, Save, FileText } from 'lucide-react'
 import Link from 'next/link'
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  icon: string | null
+  parent_id: string | null
+  sort_order: number
+}
 
 interface Ingredient {
   name: string
@@ -45,6 +57,14 @@ export function RecipeUploadForm() {
   const [prepTime, setPrepTime] = useState('')
   const [cookTime, setCookTime] = useState('')
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | ''>('')
+  const [categoryId, setCategoryId] = useState<string>('')
+  
+  // 分類列表
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null)
+  const [isAutoSuggested, setIsAutoSuggested] = useState(false)
+  const userSelectedCategoryRef = useRef(false) // 追蹤用戶是否手動選擇過分類
   
   // 圖片
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -354,6 +374,7 @@ export function RecipeUploadForm() {
         prep_time: prepTime ? parseInt(prepTime) : null,
         cook_time: cookTime ? parseInt(cookTime) : null,
         difficulty: difficulty || null,
+        category_id: categoryId || null,
         ingredients: formattedIngredients,
         steps: formattedSteps,
         tags: tags.length > 0 ? tags : [],
@@ -387,6 +408,9 @@ export function RecipeUploadForm() {
       // 步驟 8: 成功！
       updateState({ step: 'success', progress: 100, message: '發布成功！' })
 
+      // 清除草稿
+      clearDraft()
+
       // 2秒後跳轉（使用 window.location 避免 React 狀態問題）
       setTimeout(() => {
         router.push('/recipes')
@@ -401,6 +425,138 @@ export function RecipeUploadForm() {
     }
   }
 
+  // 獲取分類列表
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const supabase = createSupabaseClient()
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('sort_order', { ascending: true })
+          .order('name', { ascending: true })
+        
+        if (error) {
+          console.error('Error fetching categories:', error)
+        } else {
+          setCategories((data || []) as Category[])
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err)
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+    
+    fetchCategories()
+  }, [])
+
+  // 載入草稿（僅在首次載入時執行一次）
+  const [draftLoaded, setDraftLoaded] = useState(false)
+  useEffect(() => {
+    if (draftLoaded) return
+    
+    const draft = loadDraft()
+    if (draft) {
+      // 詢問用戶是否要恢復草稿
+      const shouldLoad = window.confirm(
+        `偵測到未完成的草稿（保存於 ${new Date(draft.savedAt).toLocaleString('zh-TW')}），是否要恢復？`
+      )
+      
+      if (shouldLoad) {
+        setTitle(draft.title)
+        setDescription(draft.description)
+        setServings(draft.servings)
+        setPrepTime(draft.prepTime)
+        setCookTime(draft.cookTime)
+        setDifficulty(draft.difficulty)
+        setCategoryId(draft.categoryId)
+        setIngredients(draft.ingredients.length > 0 ? draft.ingredients : [{ name: '', amount: '', unit: '', note: '', category: '' }])
+        setSteps(draft.steps.length > 0 ? draft.steps : [{ instruction: '' }])
+        setTags(draft.tags)
+        setCustomCategories(draft.customCategories)
+        setImagePreview(draft.imagePreview)
+        setStepImagePreviews(draft.stepImagePreviews)
+      } else {
+        // 用戶選擇不恢復，清除草稿
+        clearDraft()
+      }
+    }
+    setDraftLoaded(true)
+  }, [draftLoaded])
+
+  // 自動分類：當標題、描述或標籤變化時，自動建議分類
+  useEffect(() => {
+    // 如果用戶已經手動選擇過分類，則不再自動建議
+    if (userSelectedCategoryRef.current || categories.length === 0) {
+      return
+    }
+
+    // 如果標題為空或太短，不進行自動分類
+    if (!title || title.trim().length < 2) {
+      setSuggestedCategoryId(null)
+      setIsAutoSuggested(false)
+      // 只有在用戶還沒選擇過時，才清除自動建議的分類
+      if (!categoryId) {
+        setCategoryId('')
+      }
+      return
+    }
+
+    // 計算建議的分類
+    const suggestedId = autoCategorize(title, description, tags, categories)
+    
+    if (suggestedId) {
+      setSuggestedCategoryId(suggestedId)
+      setIsAutoSuggested(true)
+      // 只有在用戶還沒手動選擇過分類時，才自動設置
+      if (!userSelectedCategoryRef.current && !categoryId) {
+        setCategoryId(suggestedId)
+      }
+    } else {
+      setSuggestedCategoryId(null)
+      setIsAutoSuggested(false)
+    }
+  }, [title, description, tags, categories, categoryId])
+
+  // 自動儲存草稿（當表單內容變化時）
+  const saveDraftTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => {
+    // 如果是首次載入，不自動儲存
+    if (!draftLoaded) return
+    
+    // 清除之前的定時器
+    if (saveDraftTimeoutRef.current) {
+      clearTimeout(saveDraftTimeoutRef.current)
+    }
+    
+    // 延遲 2 秒後儲存（避免頻繁寫入）
+    saveDraftTimeoutRef.current = setTimeout(() => {
+      const draft: Omit<RecipeDraft, 'savedAt'> = {
+        title,
+        description,
+        servings,
+        prepTime,
+        cookTime,
+        difficulty,
+        categoryId,
+        imagePreview,
+        ingredients,
+        steps,
+        stepImagePreviews,
+        tags,
+        customCategories,
+      }
+      saveDraft(draft)
+    }, 2000)
+    
+    return () => {
+      if (saveDraftTimeoutRef.current) {
+        clearTimeout(saveDraftTimeoutRef.current)
+      }
+    }
+  }, [title, description, servings, prepTime, cookTime, difficulty, categoryId, imagePreview, ingredients, steps, stepImagePreviews, tags, customCategories, draftLoaded])
+
   // 重置狀態
   const resetState = () => {
     updateState({ step: 'idle', progress: 0, message: '', error: undefined })
@@ -409,13 +565,13 @@ export function RecipeUploadForm() {
   const isSubmitting = submissionState.step !== 'idle' && submissionState.step !== 'success' && submissionState.step !== 'error'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white">
+      <div className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto px-4 py-4">
           <Link 
             href="/recipes" 
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
           >
             <ArrowLeft className="h-5 w-5" />
             <span>返回食譜列表</span>
@@ -425,8 +581,30 @@ export function RecipeUploadForm() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">上傳食譜</h1>
-          <p className="mt-2 text-gray-600">分享你的美味料理</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">上傳食譜</h1>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">分享你的美味料理</p>
+            </div>
+            {hasDraft() && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <Save className="h-4 w-4" />
+                <span>
+                  草稿已自動保存
+                  {(() => {
+                    const savedTime = getDraftSavedTime()
+                    if (savedTime) {
+                      const minutesAgo = Math.floor((Date.now() - savedTime.getTime()) / 60000)
+                      if (minutesAgo < 1) return '（剛剛）'
+                      if (minutesAgo < 60) return `（${minutesAgo} 分鐘前）`
+                      return `（${savedTime.toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}）`
+                    }
+                    return ''
+                  })()}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 提交狀態顯示 */}
@@ -479,7 +657,7 @@ export function RecipeUploadForm() {
                         style={{ width: `${submissionState.progress}%` }}
                       />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {submissionState.progress}% 完成
                     </p>
                   </div>
@@ -517,12 +695,12 @@ export function RecipeUploadForm() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 基本資訊區塊 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h2 className="mb-4 text-xl font-bold">① 基本資訊</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">
                   食譜標題 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -530,30 +708,30 @@ export function RecipeUploadForm() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="例如：奶油蒜香雞胸"
-                  className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                   required
                   disabled={isSubmitting}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">簡短介紹</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">簡短介紹</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   placeholder="例如：上班族 15 分鐘就能完成的奶油蒜香雞胸。"
-                  className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                   disabled={isSubmitting}
                 />
               </div>
 
               {/* 封面圖片 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">封面圖片</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">封面圖片</label>
                 <div
                   onClick={() => !isSubmitting && document.getElementById('image-upload')?.click()}
-                  className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors ${
+                  className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors dark:border-gray-600 dark:bg-gray-700 ${
                     isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
                   }`}
                 >
@@ -580,8 +758,8 @@ export function RecipeUploadForm() {
                     </>
                   ) : (
                     <>
-                      <Upload className="mb-4 h-12 w-12 text-gray-400" />
-                      <p className="text-sm text-gray-600">點擊上傳封面圖片</p>
+                      <Upload className="mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
+                      <p className="text-sm text-gray-600 dark:text-gray-400">點擊上傳封面圖片</p>
                     </>
                   )}
                   <input
@@ -598,38 +776,38 @@ export function RecipeUploadForm() {
               {/* 份量與時間 */}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">份量（人份）</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">份量（人份）</label>
                   <input
                     type="number"
                     value={servings}
                     onChange={(e) => setServings(e.target.value)}
                     min="1"
                     placeholder="2"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">準備時間（分鐘）</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">準備時間（分鐘）</label>
                   <input
                     type="number"
                     value={prepTime}
                     onChange={(e) => setPrepTime(e.target.value)}
                     min="1"
                     placeholder="10"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">料理時間（分鐘）</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">料理時間（分鐘）</label>
                   <input
                     type="number"
                     value={cookTime}
                     onChange={(e) => setCookTime(e.target.value)}
                     min="1"
                     placeholder="15"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -637,7 +815,7 @@ export function RecipeUploadForm() {
 
               {/* 難度 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">難度</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">難度</label>
                 <div className="flex gap-2">
                   {(['easy', 'medium', 'hard'] as const).map((diff) => (
                     <button
@@ -656,17 +834,62 @@ export function RecipeUploadForm() {
                   ))}
                 </div>
               </div>
+
+              {/* 分類 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">分類（選填）</label>
+                  {isAutoSuggested && suggestedCategoryId && (
+                    <span className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400">
+                      <Sparkles className="h-3 w-3" />
+                      <span>已自動建議</span>
+                    </span>
+                  )}
+                </div>
+                {loadingCategories ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">載入分類中...</div>
+                ) : (
+                  <>
+                    <select
+                      value={categoryId}
+                      onChange={(e) => {
+                        setCategoryId(e.target.value)
+                        userSelectedCategoryRef.current = true
+                        setIsAutoSuggested(false)
+                      }}
+                      className={`w-full rounded-md border px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 ${
+                        isAutoSuggested && suggestedCategoryId === categoryId
+                          ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/20'
+                          : 'border-gray-300'
+                      }`}
+                      disabled={isSubmitting}
+                    >
+                      <option value="">選擇分類（選填）</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                    {isAutoSuggested && suggestedCategoryId && suggestedCategoryId === categoryId && (
+                      <p className="mt-1 text-xs text-primary-600 dark:text-primary-400">
+                        系統根據您的食譜內容自動建議此分類，您仍可手動更改
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </section>
 
           {/* 食材列表 - 保持原有設計但添加 disabled 狀態 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4">
               <h2 className="mb-4 text-xl font-bold">② 食材列表</h2>
               
               {/* 自定義分類輸入 */}
               <div className="mb-4 rounded-lg bg-gray-50 p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">自定義分類</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">自定義分類</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -679,7 +902,7 @@ export function RecipeUploadForm() {
                       }
                     }}
                     placeholder="輸入新分類名稱"
-                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                   <Button
@@ -758,7 +981,7 @@ export function RecipeUploadForm() {
 
                 if (categoriesWithIngredients.length === 0) {
                   return (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       點擊上方按鈕開始添加食材
                     </div>
                   )
@@ -847,7 +1070,7 @@ export function RecipeUploadForm() {
                               <select
                                 value={ingredient.category}
                                 onChange={(e) => updateIngredient(index, 'category', e.target.value)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                                 disabled={isSubmitting}
                               >
                                 <option value="">無分類</option>
@@ -890,7 +1113,7 @@ export function RecipeUploadForm() {
           </section>
 
           {/* 步驟列表 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold">③ 步驟列表</h2>
               {!isSubmitting && (
@@ -929,16 +1152,16 @@ export function RecipeUploadForm() {
                     onChange={(e) => updateStep(index, 'instruction', e.target.value)}
                     rows={3}
                     placeholder="例如：將雞胸肉切成適口大小，撒上鹽與胡椒稍微醃 10 分鐘。"
-                    className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
 
                   {/* 步驟圖片上傳 */}
                   <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">步驟圖片（選填）</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">步驟圖片（選填）</label>
                     <div
                       onClick={() => !isSubmitting && document.getElementById(`step-image-upload-${index}`)?.click()}
-                      className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors ${
+                      className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors dark:border-gray-600 dark:bg-gray-700 ${
                         isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
                       }`}
                     >
@@ -964,8 +1187,8 @@ export function RecipeUploadForm() {
                         </>
                       ) : (
                         <>
-                          <Upload className="mb-2 h-8 w-8 text-gray-400" />
-                          <p className="text-xs text-gray-600">點擊上傳圖片</p>
+                          <Upload className="mb-2 h-8 w-8 text-gray-400 dark:text-gray-500" />
+                          <p className="text-xs text-gray-600 dark:text-gray-400">點擊上傳圖片</p>
                         </>
                       )}
                       <input
@@ -1006,12 +1229,12 @@ export function RecipeUploadForm() {
           </section>
 
           {/* 標籤 */}
-          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h2 className="mb-4 text-xl font-bold">④ 標籤</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">常用標籤</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">常用標籤</label>
                 <div className="flex flex-wrap gap-2">
                   {commonTags.map((tag) => (
                     <button
@@ -1032,7 +1255,7 @@ export function RecipeUploadForm() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">自訂標籤</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">自訂標籤</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -1048,7 +1271,7 @@ export function RecipeUploadForm() {
                       }
                     }}
                     placeholder="輸入標籤並按 Enter"
-                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
                     disabled={isSubmitting}
                   />
                   <Button

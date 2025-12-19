@@ -8,6 +8,7 @@ import { Star, Clock, Users, Heart } from 'lucide-react'
 import { formatTime, truncate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { TagLink } from './TagLink'
+import { CategoryLink } from './CategoryLink'
 
 interface RecipeCardProps {
   recipe: Recipe
@@ -18,9 +19,9 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
   const router = useRouter()
   
   const difficultyColors = {
-    easy: 'bg-green-100 text-green-800',
-    medium: 'bg-yellow-100 text-yellow-800',
-    hard: 'bg-red-100 text-red-800',
+    easy: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    hard: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   }
 
   const difficultyLabels = {
@@ -42,11 +43,11 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
   
   const cardContent = (
       <div className={cn(
-        "overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm",
+        "overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800",
         !isPreview && "transition-shadow hover:shadow-md"
       )}>
         {/* Recipe Image */}
-        <div className="relative h-48 w-full overflow-hidden bg-gray-200">
+        <div className="relative h-48 w-full overflow-hidden bg-gray-200 dark:bg-gray-700">
           {recipe.image_url ? (
             <Image
               src={recipe.image_url}
@@ -56,7 +57,7 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-gray-400">
+            <div className="flex h-full items-center justify-center text-gray-400 dark:text-gray-500">
               <span>無圖片</span>
             </div>
           )}
@@ -74,30 +75,30 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
 
         {/* Recipe Info */}
         <div className="p-4">
-          <h3 className="mb-2 text-lg font-semibold text-gray-900 line-clamp-2">
+          <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
             {recipe.title}
           </h3>
           {recipe.description && (
-            <p className="mb-3 text-sm text-gray-600 line-clamp-2">
+            <p className="mb-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
               {truncate(recipe.description, 100)}
             </p>
           )}
 
           {/* Recipe Meta */}
-          <div className="flex flex-col space-y-2 text-sm text-gray-500">
+          <div className="flex flex-col space-y-2 text-sm text-gray-500 dark:text-gray-400">
             <div className="flex items-center space-x-4">
               {recipe.rating_count && recipe.rating_count > 0 ? (
                 <div className="flex items-center space-x-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                   <span className="font-medium">{recipe.average_rating?.toFixed(1) || '0.0'}</span>
-                  <span className="text-gray-400">
+                  <span className="text-gray-400 dark:text-gray-500">
                     ({recipe.rating_count}人評分)
                   </span>
                 </div>
               ) : (
                 <div className="flex items-center space-x-1">
-                  <Star className="h-4 w-4 text-gray-300" />
-                  <span className="text-gray-400">0人評分</span>
+                  <Star className="h-4 w-4 text-gray-300 dark:text-gray-600" />
+                  <span className="text-gray-400 dark:text-gray-500">0人評分</span>
                 </div>
               )}
               {recipe.favorite_count !== undefined && recipe.favorite_count > 0 && (
@@ -125,6 +126,17 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
             </div>
           </div>
 
+          {/* Category */}
+          {recipe.category && (
+            <div className="mt-3">
+              <CategoryLink
+                category={recipe.category}
+                className="text-xs px-2 py-1"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+
           {/* Tags */}
           {recipe.tags && recipe.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -144,12 +156,24 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
             <Link 
               href={`/profile/${recipe.user_id}`}
               onClick={(e) => e.stopPropagation()}
-              className="mt-3 flex items-center space-x-2 border-t pt-3 hover:opacity-80 transition-opacity"
+              className="mt-3 flex items-center space-x-2 border-t border-gray-200 pt-3 hover:opacity-80 transition-opacity dark:border-gray-700"
             >
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600">
-                {recipe.user.username?.[0]?.toUpperCase() || 'U'}
-              </span>
-              <span className="text-xs text-gray-600">
+              {recipe.user.avatar_url ? (
+                <div className="relative h-6 w-6 overflow-hidden rounded-full">
+                  <Image
+                    src={recipe.user.avatar_url}
+                    alt={recipe.user.username || '用戶'}
+                    fill
+                    className="object-cover"
+                    sizes="24px"
+                  />
+                </div>
+              ) : (
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                  {recipe.user.username?.[0]?.toUpperCase() || 'U'}
+                </span>
+              )}
+              <span className="text-xs text-gray-600 dark:text-gray-400">
                 {recipe.user.username || '匿名用戶'}
               </span>
             </Link>

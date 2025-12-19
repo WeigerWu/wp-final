@@ -24,7 +24,7 @@ export function TagLink({ tag, className, onClick }: TagLinkProps) {
         }
       }}
       className={cn(
-        'inline-block rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-colors',
+        'inline-block rounded-full bg-gray-100 px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 hover:text-gray-900 transition-colors dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-gray-100',
         className
       )}
     >

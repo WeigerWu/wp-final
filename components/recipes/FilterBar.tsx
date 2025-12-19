@@ -1,13 +1,49 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { createSupabaseClient } from '@/lib/supabase/client'
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+}
 
 export function FilterBar() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedTags = searchParams.get('tags')?.split(',') || []
   const selectedDifficulty = searchParams.get('difficulty')
+  const selectedCategory = searchParams.get('category')
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const supabase = createSupabaseClient()
+        const { data, error } = await supabase
+          .from('categories')
+          .select('id, name, slug')
+          .order('sort_order', { ascending: true })
+          .order('name', { ascending: true })
+        
+        if (error) {
+          console.error('Error fetching categories:', error)
+        } else {
+          setCategories((data || []) as Category[])
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err)
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+    
+    fetchCategories()
+  }, [])
 
   const difficulties = [
     { value: 'easy', label: '簡單' },
@@ -60,15 +96,48 @@ export function FilterBar() {
     router.push(`/recipes?${params.toString()}`)
   }
 
+  const handleCategoryClick = (categoryId: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (selectedCategory === categoryId) {
+      params.delete('category')
+    } else {
+      params.set('category', categoryId)
+    }
+    params.set('page', '1')
+    router.push(`/recipes?${params.toString()}`)
+  }
+
   const clearFilters = () => {
     router.push('/recipes')
   }
 
   return (
     <div className="space-y-4">
+      {/* Category Filter */}
+      {!loadingCategories && categories.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">分類</h3>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleCategoryClick(category.id)}
+                className={`rounded-full px-4 py-2 text-sm transition-colors ${
+                  selectedCategory === category.id
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Difficulty Filter */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">難度</h3>
+        <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">難度</h3>
         <div className="flex flex-wrap gap-2">
           {difficulties.map((difficulty) => (
             <button
@@ -77,7 +146,7 @@ export function FilterBar() {
               className={`rounded-full px-4 py-2 text-sm transition-colors ${
                 selectedDifficulty === difficulty.value
                   ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
             >
               {difficulty.label}
@@ -88,7 +157,7 @@ export function FilterBar() {
 
       {/* Tags Filter */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">標籤</h3>
+        <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">標籤</h3>
         <div className="flex flex-wrap gap-2">
           {popularTags.map((tag) => (
             <button
@@ -97,7 +166,7 @@ export function FilterBar() {
               className={`rounded-full px-4 py-2 text-sm transition-colors ${
                 selectedTags.includes(tag)
                   ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
               }`}
             >
               {tag}
@@ -107,15 +176,26 @@ export function FilterBar() {
       </div>
 
       {/* Active Filters */}
-      {(selectedTags.length > 0 || selectedDifficulty) && (
+      {(selectedTags.length > 0 || selectedDifficulty || selectedCategory) && (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">已選擇：</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400">已選擇：</span>
+          {selectedCategory && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800 dark:bg-primary-900 dark:text-primary-200">
+              {categories.find((c) => c.id === selectedCategory)?.name || '分類'}
+              <button
+                onClick={() => handleCategoryClick(selectedCategory)}
+                className="ml-1 hover:text-primary-600 dark:hover:text-primary-400"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
           {selectedDifficulty && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800 dark:bg-primary-900 dark:text-primary-200">
               {difficulties.find((d) => d.value === selectedDifficulty)?.label}
               <button
                 onClick={() => handleDifficultyClick(selectedDifficulty)}
-                className="ml-1 hover:text-primary-600"
+                className="ml-1 hover:text-primary-600 dark:hover:text-primary-400"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -124,12 +204,12 @@ export function FilterBar() {
           {selectedTags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800"
+              className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800 dark:bg-primary-900 dark:text-primary-200"
             >
               {tag}
               <button
                 onClick={() => handleTagClick(tag)}
-                className="ml-1 hover:text-primary-600"
+                className="ml-1 hover:text-primary-600 dark:hover:text-primary-400"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -137,7 +217,7 @@ export function FilterBar() {
           ))}
           <button
             onClick={clearFilters}
-            className="text-sm text-primary-600 hover:underline"
+            className="text-sm text-primary-600 hover:underline dark:text-primary-400"
           >
             清除所有
           </button>

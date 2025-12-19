@@ -23,6 +23,13 @@ export interface Recipe {
   prep_time: number | null
   cook_time: number | null
   difficulty: 'easy' | 'medium' | 'hard' | null
+  category_id?: string | null
+  category?: {
+    id: string
+    name: string
+    slug: string
+    icon: string | null
+  } | null
   tags: string[]
   ingredients: Ingredient[]
   steps: RecipeStep[]

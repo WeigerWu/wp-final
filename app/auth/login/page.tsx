@@ -102,14 +102,14 @@ export default function LoginPage() {
   return (
     <div className="container mx-auto px-4 py-16">
       <div className="mx-auto max-w-md">
-        <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-          <h1 className="mb-6 text-2xl font-bold">登入</h1>
+        <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <h1 className="mb-6 text-2xl font-bold dark:text-gray-100">登入</h1>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className={`rounded-md p-3 text-sm ${
                 isEmailNotConfirmed 
-                  ? 'bg-yellow-50 text-yellow-800' 
-                  : 'bg-red-50 text-red-600'
+                  ? 'bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200' 
+                  : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
               }`}>
                 <div>{error}</div>
                 {isEmailNotConfirmed && (
@@ -127,7 +127,7 @@ export default function LoginPage() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 電子郵件
               </label>
               <input
@@ -135,11 +135,11 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 密碼
               </label>
               <input
@@ -147,16 +147,16 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? '登入中...' : '登入'}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
             還沒有帳號？{' '}
-            <Link href="/auth/signup" className="text-primary-600 hover:underline">
+            <Link href="/auth/signup" className="text-primary-600 hover:underline dark:text-primary-400">
               註冊
             </Link>
           </p>

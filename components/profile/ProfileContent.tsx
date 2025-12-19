@@ -8,12 +8,14 @@ import { createSupabaseClient } from '@/lib/supabase/client'
 import { Recipe } from '@/types/recipe'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { Button } from '@/components/ui/Button'
-import { Edit2, Calendar, Heart, UserPlus, UserMinus, Users } from 'lucide-react'
+import { Edit2, Calendar, Heart, UserPlus, UserMinus, Users, Upload } from 'lucide-react'
 import { getUserFavoriteRecipes } from '@/lib/actions/recipes'
 import { followUser, unfollowUser } from '@/lib/actions/follows'
 import { isFollowingClient } from '@/lib/actions/follows-client'
 import { Database } from '@/lib/supabase/types'
 import { formatDate } from '@/lib/utils'
+import { uploadImage } from '@/lib/cloudinary'
+import { smartCompressImage } from '@/lib/image-utils'
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 
@@ -22,11 +24,12 @@ interface ProfileContentProps {
   initialRecipes: Recipe[]
   currentUserId?: string | null
   initialProfile?: ProfileRow | null
+  totalRecipeCount?: number
 }
 
 type TabType = 'recipes' | 'favorites'
 
-export function ProfileContent({ userId, initialRecipes, currentUserId, initialProfile }: ProfileContentProps) {
+export function ProfileContent({ userId, initialRecipes, currentUserId, initialProfile, totalRecipeCount }: ProfileContentProps) {
   const [profile, setProfile] = useState<ProfileRow | null>(initialProfile || null)
   const [recipes, setRecipes] = useState(initialRecipes)
   const [favoriteRecipes, setFavoriteRecipes] = useState<Recipe[]>([])
@@ -40,6 +43,11 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isFollowing, setIsFollowing] = useState(false)
   const [isFollowLoading, setIsFollowLoading] = useState(false)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [recipeCount, setRecipeCount] = useState(totalRecipeCount || initialRecipes.length)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -145,6 +153,79 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
     }
   }, [isOwner, userId])
 
+  const loadMoreRecipes = useCallback(async () => {
+    if (isLoadingMore || recipes.length >= recipeCount) return
+
+    setIsLoadingMore(true)
+    try {
+      const supabase = createSupabaseClient()
+      const limit = 20
+      const offset = recipes.length
+
+      // Fetch more recipes
+      let query = supabase
+        .from('recipes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      const { data: moreRecipes, error } = await query
+
+      if (error) {
+        console.error('Error loading more recipes:', error)
+        return
+      }
+
+      if (moreRecipes && moreRecipes.length > 0) {
+        // Fetch user profiles for new recipes
+        const userIds = Array.from(new Set(moreRecipes.map((recipe: any) => recipe.user_id)))
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .in('id', userIds)
+
+        const profilesMap = new Map(
+          (profiles || []).map((profile: any) => [profile.id, profile])
+        )
+
+        // Fetch ratings and favorites for each recipe
+        const recipesWithStats = await Promise.all(
+          moreRecipes.map(async (recipe: any) => {
+            const { data: ratings } = await supabase
+              .from('recipe_ratings')
+              .select('rating')
+              .eq('recipe_id', recipe.id)
+
+            const { data: favorites } = await supabase
+              .from('recipe_favorites')
+              .select('id')
+              .eq('recipe_id', recipe.id)
+
+            const averageRating =
+              ratings && ratings.length > 0
+                ? ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / ratings.length
+                : 0
+
+            return {
+              ...recipe,
+              user: profilesMap.get(recipe.user_id) || { username: 'Unknown', avatar_url: null },
+              average_rating: averageRating,
+              rating_count: ratings?.length || 0,
+              favorite_count: favorites?.length || 0,
+            } as Recipe
+          })
+        )
+
+        setRecipes((prev) => [...prev, ...recipesWithStats])
+      }
+    } catch (error) {
+      console.error('Error loading more recipes:', error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [userId, recipes.length, recipeCount, isLoadingMore])
+
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
     if (tab === 'favorites' && favoriteRecipes.length === 0 && isOwner) {
@@ -158,14 +239,61 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
     }
   }, [activeTab, isOwner, favoriteRecipes.length, loadFavoriteRecipes])
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 驗證文件類型
+    if (!file.type.startsWith('image/')) {
+      alert('請選擇圖片檔案')
+      return
+    }
+
+    // 驗證文件大小（限制為 10MB）
+    if (file.size > 10 * 1024 * 1024) {
+      alert('圖片檔案大小不能超過 10MB')
+      return
+    }
+
+    setAvatarFile(file)
+
+    // 創建預覽
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleUpdateProfile = async () => {
     try {
+      setIsUploadingAvatar(true)
+      let finalAvatarUrl: string | null | undefined = undefined
+
+      // 如果有新上傳的圖片，先上傳到 Cloudinary
+      if (avatarFile) {
+        try {
+          // 壓縮圖片
+          const compressedFile = await smartCompressImage(avatarFile)
+          
+          // 上傳到 Cloudinary
+          const uploadedUrl = await uploadImage(compressedFile, 'avatars')
+          finalAvatarUrl = uploadedUrl
+        } catch (error) {
+          console.error('Error uploading avatar:', error)
+          alert('大頭貼上傳失敗，請稍後再試')
+          setIsUploadingAvatar(false)
+          return
+        }
+      }
+      // 如果沒有選擇新文件，保持現有的 avatar_url 不變（不傳入該欄位）
+
       const supabase = createSupabaseClient()
       const updateData: Database['public']['Tables']['profiles']['Update'] = {
         username,
         display_name: displayName,
         bio,
-        avatar_url: avatarUrl || null,
+        ...(finalAvatarUrl !== undefined && { avatar_url: finalAvatarUrl }),
       }
       const { error } = await (supabase
         .from('profiles') as any)
@@ -182,12 +310,19 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
         .single()
 
       if (updatedProfile) {
-        setProfile(updatedProfile as ProfileRow)
+        const profileData = updatedProfile as ProfileRow
+        setProfile(profileData)
         setIsEditing(false)
+        // 重置上傳相關狀態
+        setAvatarFile(null)
+        setAvatarPreview(null)
+        setAvatarUrl(profileData.avatar_url || '')
       }
+      setIsUploadingAvatar(false)
     } catch (error) {
       console.error('Error updating profile:', error)
       alert('更新失敗，請稍後再試')
+      setIsUploadingAvatar(false)
     }
   }
 
@@ -252,9 +387,17 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
             {isEditing && isOwner ? (
               <div className="space-y-2">
                 <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-gray-200 bg-gray-100">
-                  {avatarUrl ? (
+                  {avatarPreview ? (
                     <Image
-                      src={avatarUrl}
+                      src={avatarPreview}
+                      alt={displayNameToShow}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
+                  ) : profile.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
                       alt={displayNameToShow}
                       fill
                       className="object-cover"
@@ -267,16 +410,29 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    大頭貼 URL
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    上傳大頭貼
                   </label>
-                  <input
-                    type="url"
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
+                  <div className="space-y-2">
+                    <label className="flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                      <Upload className="mr-2 h-4 w-4" />
+                      <span>選擇圖片</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {avatarFile && (
+                      <p className="text-xs text-gray-500">
+                        已選擇: {avatarFile.name}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      支援 JPG、PNG 等圖片格式，檔案大小不超過 10MB
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -337,7 +493,12 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                   />
                 </div>
                 <div className="flex space-x-2">
-                  <Button onClick={handleUpdateProfile}>儲存</Button>
+                  <Button 
+                    onClick={handleUpdateProfile}
+                    disabled={isUploadingAvatar}
+                  >
+                    {isUploadingAvatar ? '上傳中...' : '儲存'}
+                  </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => {
@@ -346,8 +507,10 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                       setDisplayName(profile.display_name || profile.username || '')
                       setUsername(profile.username || '')
                       setBio(profile.bio || '')
-                      setAvatarUrl(profile.avatar_url || '')
+                      setAvatarFile(null)
+                      setAvatarPreview(null)
                     }}
+                    disabled={isUploadingAvatar}
                   >
                     取消
                   </Button>
@@ -433,7 +596,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                 : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
             }`}
           >
-            食譜 ({recipes.length})
+            食譜 ({recipeCount})
           </button>
           {isOwner && (
             <button
@@ -456,11 +619,25 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
         {activeTab === 'recipes' ? (
           <>
             {recipes.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {recipes.map((recipe) => (
-                  <RecipeCard key={recipe.id} recipe={recipe} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {recipes.map((recipe) => (
+                    <RecipeCard key={recipe.id} recipe={recipe} />
+                  ))}
+                </div>
+                {recipes.length < recipeCount && (
+                  <div className="mt-8 flex justify-center">
+                    <Button
+                      onClick={loadMoreRecipes}
+                      disabled={isLoadingMore}
+                      variant="outline"
+                      className="min-w-[120px]"
+                    >
+                      {isLoadingMore ? '載入中...' : `載入更多 (${recipeCount - recipes.length} 個)`}
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center">
                 <p className="text-gray-600">

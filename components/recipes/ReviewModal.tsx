@@ -101,19 +101,19 @@ export function ReviewModal({
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-lg bg-white shadow-xl"
+        className="relative w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 p-6">
+        <div className="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">撰寫評論</h2>
-            <p className="mt-1 text-sm text-gray-500">分享你的烹飪體驗</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">撰寫評論</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">分享你的烹飪體驗</p>
           </div>
           <button
             onClick={handleClose}
             disabled={isSubmitting}
-            className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+            className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-gray-300"
           >
             <X className="h-5 w-5" />
           </button>
@@ -123,7 +123,7 @@ export function ReviewModal({
         <form onSubmit={handleSubmit} className="p-6">
           {/* Rating Section */}
           <div className="mb-6">
-            <label className="mb-3 block text-sm font-medium text-gray-700">
+            <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
               評分 <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center space-x-2">
@@ -139,13 +139,13 @@ export function ReviewModal({
                     className={`h-8 w-8 transition-colors ${
                       star <= rating
                         ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-gray-300 hover:text-yellow-300'
+                        : 'text-gray-300 hover:text-yellow-300 dark:text-gray-600'
                     }`}
                   />
                 </button>
               ))}
               {rating > 0 && (
-                <span className="ml-2 text-sm text-gray-600">
+                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
                   {rating === 1
                     ? '很差'
                     : rating === 2
@@ -162,7 +162,7 @@ export function ReviewModal({
 
           {/* Comment Section */}
           <div className="mb-6">
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               評論內容
             </label>
             <textarea
@@ -170,16 +170,16 @@ export function ReviewModal({
               onChange={(e) => setComment(e.target.value)}
               placeholder="分享你的烹飪心得、建議或任何想法..."
               rows={6}
-              className="w-full rounded-md border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full rounded-md border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
               disabled={isSubmitting}
             />
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {comment.length} / 500 字
             </p>
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end space-x-3 border-t border-gray-200 pt-6">
+          <div className="flex items-center justify-end space-x-3 border-t border-gray-200 pt-6 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
