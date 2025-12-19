@@ -27,3 +27,4 @@ FROM public.profiles
 ORDER BY follower_count DESC
 LIMIT 10;
 
+
