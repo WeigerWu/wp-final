@@ -44,10 +44,10 @@ export function Navbar() {
   ]
 
   return (
-    <nav className="border-b bg-white shadow-sm">
+    <nav className="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="text-xl font-bold text-primary-600">
+          <Link href="/" className="text-xl font-bold text-primary-600 dark:text-primary-400">
             I'm cooked
           </Link>
 
@@ -57,15 +57,15 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`transition-colors hover:text-primary-600 ${
-                  pathname === item.href ? 'text-primary-600 font-semibold' : 'text-gray-700'
+                className={`transition-colors hover:text-primary-600 dark:hover:text-primary-400 ${
+                  pathname === item.href ? 'text-primary-600 font-semibold dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
                 }`}
               >
                 {item.label}
               </Link>
             ))}
             <Link href="/recipes/search">
-              <Search className="h-5 w-5 text-gray-700 hover:text-primary-600" />
+              <Search className="h-5 w-5 text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400" />
             </Link>
           </div>
 
@@ -76,7 +76,7 @@ export function Navbar() {
               <>
                 <Link 
                   href="/auth/login"
-                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   登入
                 </Link>
@@ -91,7 +91,7 @@ export function Navbar() {
               <>
                 <Link
                   href={user ? `/profile/${user.id}` : '/profile'}
-                  className="text-gray-700 hover:text-primary-600"
+                  className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                 >
                   <span className="flex items-center space-x-2">
                     <User className="h-5 w-5" />
@@ -107,7 +107,7 @@ export function Navbar() {
               <>
                 <Link 
                   href="/auth/login"
-                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                  className="inline-flex items-center justify-center rounded-md h-8 px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   登入
                 </Link>
@@ -123,7 +123,7 @@ export function Navbar() {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden"
+            className="md:hidden text-gray-700 dark:text-gray-300"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="Toggle menu"
           >
@@ -133,14 +133,14 @@ export function Navbar() {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="border-t py-4 md:hidden">
+          <div className="border-t border-gray-200 py-4 md:hidden dark:border-gray-700">
             <div className="flex flex-col space-y-4">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`transition-colors hover:text-primary-600 ${
-                    pathname === item.href ? 'text-primary-600 font-semibold' : 'text-gray-700'
+                  className={`transition-colors hover:text-primary-600 dark:hover:text-primary-400 ${
+                    pathname === item.href ? 'text-primary-600 font-semibold dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
@@ -149,7 +149,7 @@ export function Navbar() {
               ))}
               <Link
                 href="/recipes/search"
-                className="text-gray-700 hover:text-primary-600"
+                className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                 onClick={() => setIsOpen(false)}
               >
                 <span className="flex items-center space-x-2">
@@ -162,14 +162,14 @@ export function Navbar() {
                 <>
                   <Link
                     href="/auth/login"
-                    className="text-gray-700 hover:text-primary-600"
+                    className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                     onClick={() => setIsOpen(false)}
                   >
                     登入
                   </Link>
                   <Link
                     href="/auth/signup"
-                    className="text-gray-700 hover:text-primary-600"
+                    className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                     onClick={() => setIsOpen(false)}
                   >
                     註冊
@@ -179,7 +179,7 @@ export function Navbar() {
                 <>
                   <Link
                     href={user ? `/profile/${user.id}` : '/profile'}
-                    className="text-gray-700 hover:text-primary-600"
+                    className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                     onClick={() => setIsOpen(false)}
                   >
                     <span className="flex items-center space-x-2">
@@ -192,7 +192,7 @@ export function Navbar() {
                       handleSignOut()
                       setIsOpen(false)
                     }}
-                    className="flex items-center space-x-2 text-left text-gray-700 hover:text-primary-600"
+                    className="flex items-center space-x-2 text-left text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                   >
                     <LogOut className="h-5 w-5" />
                     <span>登出</span>
@@ -202,14 +202,14 @@ export function Navbar() {
                 <>
                   <Link
                     href="/auth/login"
-                    className="text-gray-700 hover:text-primary-600"
+                    className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                     onClick={() => setIsOpen(false)}
                   >
                     登入
                   </Link>
                   <Link
                     href="/auth/signup"
-                    className="text-gray-700 hover:text-primary-600"
+                    className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                     onClick={() => setIsOpen(false)}
                   >
                     註冊
