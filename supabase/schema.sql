@@ -203,6 +203,7 @@ CREATE TABLE IF NOT EXISTS public.comments (
     content TEXT NOT NULL,
     parent_id UUID REFERENCES public.comments(id) ON DELETE CASCADE,
     is_edited BOOLEAN DEFAULT false,
+    is_deleted BOOLEAN DEFAULT false NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
@@ -332,6 +333,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_recipe_id ON public.comments(recipe_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id ON public.comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON public.comments(parent_id);
 CREATE INDEX IF NOT EXISTS idx_comments_created_at ON public.comments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_is_deleted ON public.comments(is_deleted);
 
 -- Recipe Views 索引
 CREATE INDEX IF NOT EXISTS idx_recipe_views_recipe_id ON public.recipe_views(recipe_id);
