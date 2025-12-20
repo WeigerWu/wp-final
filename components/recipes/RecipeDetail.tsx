@@ -9,6 +9,7 @@ import { createSupabaseClient } from '@/lib/supabase/client'
 import { favoriteRecipe, unfavoriteRecipe, deleteRecipe } from '@/lib/actions/recipes'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import Link from 'next/link'
 import { CookingMode } from './CookingMode'
 import { TagLink } from './TagLink'
@@ -23,6 +24,8 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
   const [recipe, setRecipe] = useState(initialRecipe)
   const [isCookingMode, setIsCookingMode] = useState(false)
   const [isFavorited, setIsFavorited] = useState(recipe.is_favorited || false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
   const supabase = createSupabaseClient()
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -61,14 +64,20 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
     }
   }
 
-  const handleDelete = async () => {
-    if (!confirm('確定要刪除此食譜嗎？')) return
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    setShowDeleteConfirm(false)
+    setIsDeleting(true)
     try {
       await deleteRecipe(recipe.id)
       router.push('/recipes')
     } catch (error) {
       console.error('Error deleting recipe:', error)
       alert('刪除失敗，請稍後再試')
+      setIsDeleting(false)
     }
   }
 
@@ -117,7 +126,7 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
                   編輯
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" onClick={handleDelete}>
+              <Button variant="outline" size="sm" onClick={handleDeleteClick} disabled={isDeleting}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 刪除
               </Button>
@@ -347,6 +356,19 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
           </div>
         </section>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteConfirm}
+        title="刪除食譜"
+        message="確定要刪除此食譜嗎？刪除後將無法復原。"
+        confirmText="刪除"
+        cancelText="取消"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   )
 }

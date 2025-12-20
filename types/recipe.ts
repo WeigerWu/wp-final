@@ -67,12 +67,19 @@ export interface Comment {
   recipe_id: string
   user_id: string
   content: string
+  parent_id?: string | null
+  is_deleted?: boolean
   created_at: string
   updated_at: string
   user?: {
     username: string | null
     avatar_url: string | null
   }
+  parent_user?: {
+    username: string | null
+    avatar_url: string | null
+  } | null
+  replies?: Comment[]
 }
 
 export interface Profile {
