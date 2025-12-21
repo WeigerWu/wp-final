@@ -140,6 +140,9 @@ export interface Database {
           recipe_id: string
           user_id: string
           content: string
+          parent_id: string | null
+          is_edited: boolean
+          is_deleted: boolean
           created_at: string
           updated_at: string
         }
@@ -148,6 +151,9 @@ export interface Database {
           recipe_id: string
           user_id: string
           content: string
+          parent_id?: string | null
+          is_edited?: boolean
+          is_deleted?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -156,6 +162,9 @@ export interface Database {
           recipe_id?: string
           user_id?: string
           content?: string
+          parent_id?: string | null
+          is_edited?: boolean
+          is_deleted?: boolean
           created_at?: string
           updated_at?: string
         }

@@ -1,5 +1,6 @@
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Comment } from '@/types/recipe'
+import type { Database } from '@/lib/supabase/types'
 
 export async function getComments(recipeId: string): Promise<Comment[]> {
   const supabase = createSupabaseClient()
