@@ -243,26 +243,26 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
                   className="fixed inset-0 z-10"
                   onClick={() => setShowExportMenu(false)}
                 />
-                <div className="absolute right-0 top-full mt-2 w-48 rounded-md border border-gray-200 bg-white shadow-lg z-20">
+                <div className="absolute right-0 top-full mt-2 w-48 rounded-md border border-gray-200 bg-white shadow-lg z-20 dark:border-gray-700 dark:bg-gray-800">
                   <button
                     onClick={handleExportPDF}
-                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm hover:bg-gray-100 transition-colors border-b border-gray-100"
+                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors border-b border-gray-100 dark:text-gray-200 dark:hover:bg-gray-700 dark:border-gray-700"
                   >
                     <File className="h-4 w-4 text-red-500" />
                     <span>匯出為 PDF (.pdf)</span>
                   </button>
                   <button
                     onClick={handleExportText}
-                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm hover:bg-gray-100 transition-colors"
+                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors dark:text-gray-200 dark:hover:bg-gray-700"
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="h-4 w-4 dark:text-gray-400" />
                     <span>匯出為文字檔 (.txt)</span>
                   </button>
                   <button
                     onClick={handleExportJSON}
-                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm hover:bg-gray-100 transition-colors"
+                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors dark:text-gray-200 dark:hover:bg-gray-700"
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="h-4 w-4 dark:text-gray-400" />
                     <span>匯出為 JSON (.json)</span>
                   </button>
                 </div>

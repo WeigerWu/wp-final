@@ -150,7 +150,7 @@ export default function LoginPage() {
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" isLoading={isLoading}>
               {isLoading ? '登入中...' : '登入'}
             </Button>
           </form>

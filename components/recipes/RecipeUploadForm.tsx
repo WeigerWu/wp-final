@@ -1326,19 +1326,16 @@ export function RecipeUploadForm() {
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting}
+                isLoading={isSubmitting}
                 className="min-w-[120px]"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    發布中...
-                  </>
-                ) : submissionState.step === 'success' ? (
+                {submissionState.step === 'success' ? (
                   <>
                     <Check className="mr-2 h-4 w-4" />
                     已發布
                   </>
+                ) : isSubmitting ? (
+                  '發布中...'
                 ) : (
                   '發佈食譜'
                 )}
