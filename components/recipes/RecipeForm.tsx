@@ -493,7 +493,7 @@ export function RecipeForm({ recipe, mode = 'create' }: RecipeFormProps) {
         >
           取消
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" isLoading={isSubmitting}>
           {isSubmitting ? '儲存中...' : mode === 'edit' ? '更新' : '建立'}
         </Button>
       </div>
