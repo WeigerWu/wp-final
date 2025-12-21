@@ -17,10 +17,12 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
   const limit = 12
 
   const tags = searchParams.tags ? searchParams.tags.split(',') : undefined
+  const difficulty = searchParams.difficulty as 'easy' | 'medium' | 'hard' | undefined
   const recipes = await getRecipes({
     search: searchParams.search,
     tags,
     categoryId: searchParams.category,
+    difficulty,
     limit,
     offset: 0,
   })

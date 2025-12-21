@@ -18,9 +18,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const offset = (page - 1) * limit
 
   const tags = searchParams.tags ? searchParams.tags.split(',') : undefined
+  const difficulty = searchParams.difficulty as 'easy' | 'medium' | 'hard' | undefined
   const recipes = await getRecipes({
     search: searchParams.search,
     tags,
+    difficulty,
     limit,
     offset,
   })
