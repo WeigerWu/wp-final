@@ -8,6 +8,7 @@ interface GetRecipesOptions {
   tags?: string[]
   search?: string
   categoryId?: string
+  difficulty?: 'easy' | 'medium' | 'hard'
 }
 
 export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recipe[]> {
@@ -81,6 +82,10 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
 
   if (options.search) {
     query = query.or(`title.ilike.%${options.search}%,description.ilike.%${options.search}%`)
+  }
+
+  if (options.difficulty) {
+    query = query.eq('difficulty', options.difficulty)
   }
 
   if (options.limit) {

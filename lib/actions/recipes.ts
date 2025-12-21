@@ -311,6 +311,7 @@ export async function getRecipesClient(options: {
   tags?: string[]
   search?: string
   categoryId?: string
+  difficulty?: 'easy' | 'medium' | 'hard'
 } = {}): Promise<Recipe[]> {
   const supabase = createSupabaseClient()
   
@@ -367,6 +368,10 @@ export async function getRecipesClient(options: {
 
   if (options.search) {
     query = query.or(`title.ilike.%${options.search}%,description.ilike.%${options.search}%`)
+  }
+
+  if (options.difficulty) {
+    query = query.eq('difficulty', options.difficulty)
   }
 
   if (options.limit) {
