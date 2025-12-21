@@ -271,7 +271,7 @@ export async function chatWithRecipeAssistant(
   let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
   if (conversationId) {
     const messages = await getConversationMessages(conversationId)
-    conversationHistory = messages.map(msg => ({
+    conversationHistory = messages.map((msg: any) => ({
       role: msg.role as 'user' | 'assistant',
       content: msg.content
     }))
@@ -343,8 +343,8 @@ async function createConversation(userId: string, firstMessage: string): Promise
     ? firstMessage.substring(0, 50) + '...'
     : firstMessage
 
-  const { data, error } = await supabase
-    .from('chatbot_conversations')
+  const { data, error } = await (supabase
+    .from('chatbot_conversations') as any)
     .insert({
       user_id: userId,
       title: title
@@ -369,8 +369,8 @@ async function saveMessage(
 ): Promise<void> {
   const supabase = await createServerSupabaseClient()
 
-  const { error } = await supabase
-    .from('chatbot_messages')
+  const { error } = await (supabase
+    .from('chatbot_messages') as any)
     .insert({
       conversation_id: conversationId,
       role: role,
@@ -423,7 +423,7 @@ export async function getConversationMessages(conversationId: string) {
     .eq('id', conversationId)
     .single()
 
-  if (!conversation || conversation.user_id !== user.id) {
+  if (!conversation || (conversation as any).user_id !== user.id) {
     throw new Error('Conversation not found or access denied')
   }
 
@@ -440,7 +440,7 @@ export async function getConversationMessages(conversationId: string) {
 
   // 如果有食譜 ID，載入完整的食譜資訊
   const messagesWithRecipes = await Promise.all(
-    (data || []).map(async (msg) => {
+    (data || []).map(async (msg: any) => {
       if (msg.role === 'assistant' && msg.recipes && Array.isArray(msg.recipes) && msg.recipes.length > 0) {
         // 載入食譜資訊
         const { getRecipe } = await import('./recipes-server')
