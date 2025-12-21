@@ -1,5 +1,6 @@
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Comment } from '@/types/recipe'
+import type { Database } from '@/lib/supabase/types'
 
 export async function getComments(recipeId: string): Promise<Comment[]> {
   const supabase = createSupabaseClient()
@@ -131,13 +132,16 @@ export async function createComment(
       .single()
     
     if (parentComment) {
-      const { data: parentProfile } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .eq('id', parentComment.user_id)
-        .single()
-      
-      parentUser = parentProfile || null
+      const parentUserId = (parentComment as { user_id: string }).user_id
+      if (parentUserId) {
+        const { data: parentProfile } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .eq('id', parentUserId)
+          .single()
+        
+        parentUser = parentProfile || null
+      }
     }
   }
 
@@ -200,8 +204,8 @@ export async function deleteComment(id: string): Promise<boolean> {
 
   // Soft delete: update is_deleted instead of actually deleting
   // This prevents CASCADE deletion of child comments
-  const { error } = await supabase
-    .from('comments')
+  const { error } = await (supabase
+    .from('comments') as any)
     .update({ is_deleted: true })
     .eq('id', id)
     .eq('user_id', user.id)
