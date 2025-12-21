@@ -495,7 +495,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                 <div className="flex space-x-2">
                   <Button 
                     onClick={handleUpdateProfile}
-                    disabled={isUploadingAvatar}
+                    isLoading={isUploadingAvatar}
                   >
                     {isUploadingAvatar ? '上傳中...' : '儲存'}
                   </Button>
@@ -536,7 +536,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                   ) : (
                     <Button
                       onClick={handleFollow}
-                      disabled={isFollowLoading}
+                      isLoading={isFollowLoading}
                       variant={isFollowing ? 'outline' : 'default'}
                       className="flex items-center space-x-2"
                     >
@@ -629,7 +629,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                   <div className="mt-8 flex justify-center">
                     <Button
                       onClick={loadMoreRecipes}
-                      disabled={isLoadingMore}
+                      isLoading={isLoadingMore}
                       variant="outline"
                       className="min-w-[120px]"
                     >

@@ -131,17 +131,14 @@ export async function createComment(
       .eq('id', parentId)
       .single()
     
-    if (parentComment) {
-      const parentUserId = (parentComment as { user_id: string }).user_id
-      if (parentUserId) {
-        const { data: parentProfile } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url')
-          .eq('id', parentUserId)
-          .single()
-        
-        parentUser = parentProfile || null
-      }
+    if (parentComment && (parentComment as any).user_id) {
+      const { data: parentProfile } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .eq('id', (parentComment as any).user_id)
+        .single()
+      
+      parentUser = parentProfile || null
     }
   }
 

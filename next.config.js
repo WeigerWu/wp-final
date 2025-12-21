@@ -13,6 +13,14 @@ const nextConfig = {
       },
     ],
   },
+  webpack: (config, { isServer }) => {
+    // html2pdf.js 是純客戶端庫，不應該在服務器端打包
+    if (isServer) {
+      config.externals = config.externals || []
+      config.externals.push('html2pdf.js')
+    }
+    return config
+  },
 }
 
 module.exports = nextConfig
