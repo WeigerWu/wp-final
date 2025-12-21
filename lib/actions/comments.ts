@@ -130,11 +130,11 @@ export async function createComment(
       .eq('id', parentId)
       .single()
     
-    if (parentComment) {
+    if (parentComment && (parentComment as any).user_id) {
       const { data: parentProfile } = await supabase
         .from('profiles')
         .select('id, username, avatar_url')
-        .eq('id', parentComment.user_id)
+        .eq('id', (parentComment as any).user_id)
         .single()
       
       parentUser = parentProfile || null
@@ -200,8 +200,8 @@ export async function deleteComment(id: string): Promise<boolean> {
 
   // Soft delete: update is_deleted instead of actually deleting
   // This prevents CASCADE deletion of child comments
-  const { error } = await supabase
-    .from('comments')
+  const { error } = await (supabase
+    .from('comments') as any)
     .update({ is_deleted: true })
     .eq('id', id)
     .eq('user_id', user.id)
