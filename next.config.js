@@ -14,21 +14,16 @@ const nextConfig = {
     ],
   },
   // 關閉 Output File Tracing 以解決堆疊溢出錯誤
-  // Vercel 預設不需要這個功能也能正常運行（除非有 Monorepo 設定）
   outputFileTracing: false,
-  // 優化構建性能，減少構建追蹤的負擔
+  // 優化套件導入
   experimental: {
     optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
   },
-  webpack: (config, { isServer, dev }) => {
-    // html2pdf.js 是純客戶端庫，不應該在服務器端打包
+  webpack: (config, { isServer }) => {
+    // html2pdf.js 僅在客戶端使用
     if (isServer) {
       config.externals = config.externals || []
       config.externals.push('html2pdf.js')
-    }
-    // 在生產構建中禁用緩存以減少內存使用（可能幫助避免堆疊溢出）
-    if (!dev) {
-      config.cache = false
     }
     return config
   },
