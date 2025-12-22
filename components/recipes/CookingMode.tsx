@@ -115,7 +115,7 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-white dark:bg-gray-900">
       {/* Header */}
       <div className="border-b border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto flex items-center justify-between">
@@ -173,45 +173,10 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
       )}
 
       {/* Step Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pb-24">
         <div className="mx-auto max-w-3xl">
-          {/* Step Image */}
-          {currentStepData.image_url && (
-            <div className="mb-6 relative h-64 w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
-              <Image
-                src={currentStepData.image_url}
-                alt={`步驟 ${currentStep + 1}`}
-                fill
-                className="object-cover"
-                sizes="100vw"
-              />
-            </div>
-          )}
-
-          {/* Step Instruction */}
-          <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold dark:text-gray-100">步驟 {currentStep + 1}</h2>
-            </div>
-            <p className="text-lg text-gray-700 dark:text-gray-300">{currentStepData.instruction}</p>
-            
-            {/* Timer Button */}
-            {currentStepData.timer_minutes && (
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => startTimer(currentStepData.timer_minutes!)}
-                  disabled={timer !== null}
-                >
-                  <Clock className="mr-2 h-4 w-4" />
-                  開始計時 {currentStepData.timer_minutes} 分鐘
-                </Button>
-              </div>
-            )}
-          </div>
-
           {/* Navigation */}
-          <div className="flex items-center justify-between">
+          <div className="mb-6 flex items-center justify-between">
             <Button
               variant="outline"
               onClick={goToPreviousStep}
@@ -238,6 +203,41 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
               </Button>
             )}
           </div>
+
+          {/* Step Instruction */}
+          <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold dark:text-gray-100">步驟 {currentStep + 1}</h2>
+            </div>
+            <p className="text-lg text-gray-700 dark:text-gray-300">{currentStepData.instruction}</p>
+            
+            {/* Timer Button */}
+            {currentStepData.timer_minutes && (
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => startTimer(currentStepData.timer_minutes!)}
+                  disabled={timer !== null}
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  開始計時 {currentStepData.timer_minutes} 分鐘
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Step Image */}
+          {currentStepData.image_url && (
+            <div className="relative h-[500px] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
+              <Image
+                src={currentStepData.image_url}
+                alt={`步驟 ${currentStep + 1}`}
+                fill
+                className="object-contain"
+                sizes="100vw"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -246,16 +246,19 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
         <div className="container mx-auto">
           <div className="flex space-x-2 overflow-x-auto">
             {steps.map((step, index) => {
-              const isCompleted = completedSteps.has(index)
+              // 當前步驟之前的步驟都視為已完成
+              const isCompleted = index < currentStep
               const isCurrent = index === currentStep
               
-              // 如果步驟已完成，優先顯示為綠色（即使它是當前步驟）
               let buttonClass = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-colors '
               if (isCompleted) {
+                // 已完成的步驟顯示綠色勾勾
                 buttonClass += 'border-green-500 bg-green-500 text-white'
               } else if (isCurrent) {
+                // 當前步驟顯示主色
                 buttonClass += 'border-primary-600 bg-primary-600 text-white'
               } else {
+                // 未完成的步驟顯示灰色
                 buttonClass += 'border-gray-300 text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500'
               }
               

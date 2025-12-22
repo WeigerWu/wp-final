@@ -106,7 +106,7 @@ export function LoadMoreRecipes({
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-24 right-8 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg transition-all hover:bg-primary-700 hover:scale-110 dark:bg-primary-500 dark:hover:bg-primary-600"
+          className="fixed bottom-24 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg transition-all hover:bg-primary-700 hover:scale-110 dark:bg-primary-500 dark:hover:bg-primary-600"
           aria-label="回到頂部"
         >
           <ArrowUp className="h-6 w-6" />
