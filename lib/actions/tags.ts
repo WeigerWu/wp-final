@@ -7,12 +7,12 @@ import { Tag } from '@/types/tag'
  */
 export async function getTagBySlug(slug: string): Promise<Tag | null> {
   const supabase = await createServerSupabaseClient()
-  
+
   const { data, error } = await supabase
     .from('tags')
     .select('id, name, slug, description, usage_count')
     .eq('slug', slug)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching tag:', error)
@@ -27,12 +27,12 @@ export async function getTagBySlug(slug: string): Promise<Tag | null> {
  */
 export async function getTagById(tagId: string): Promise<Tag | null> {
   const supabase = await createServerSupabaseClient()
-  
+
   const { data, error } = await supabase
     .from('tags')
     .select('id, name, slug, description, usage_count')
     .eq('id', tagId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error fetching tag:', error)
@@ -47,12 +47,12 @@ export async function getTagById(tagId: string): Promise<Tag | null> {
  */
 export async function getTagByName(tagName: string): Promise<Tag | null> {
   const supabase = await createServerSupabaseClient()
-  
+
   const { data, error } = await supabase
     .from('tags')
     .select('id, name, slug, description, usage_count')
     .ilike('name', tagName.trim())
-    .single()
+    .maybeSingle()
 
   if (error) {
     // 如果找不到，返回 null（不會拋出錯誤）

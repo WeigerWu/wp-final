@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Menu, X, Search, User, LogOut } from 'lucide-react'
@@ -16,14 +16,23 @@ export function Navbar() {
   const searchFormRef = useRef<HTMLFormElement>(null)
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createSupabaseClient()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<{ username: string | null; avatar_url: string | null; display_name: string | null } | null>(null)
   const [mounted, setMounted] = useState(false)
 
+  // 只在客戶端創建 Supabase 客戶端
+  const supabase = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return createSupabaseClient()
+    }
+    return null
+  }, [])
+
   useEffect(() => {
+    if (!supabase) return
+
     setMounted(true)
-    
+
     const loadProfile = async (userId: string) => {
       try {
         const { data: profileData, error } = await supabase
@@ -31,14 +40,14 @@ export function Navbar() {
           .select('username, avatar_url, display_name')
           .eq('id', userId)
           .single()
-        
+
         if (error) {
           console.error('Error fetching profile in Navbar:', error)
           // 如果 profile 不存在，設置為空對象以便顯示預設值
           setProfile({ username: null, avatar_url: null, display_name: null })
           return
         }
-        
+
         if (profileData) {
           console.log('Profile loaded in Navbar:', profileData)
           setProfile(profileData)
@@ -72,7 +81,7 @@ export function Navbar() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase])
 
   // 處理點擊外部關閉搜尋框
   useEffect(() => {
@@ -93,7 +102,9 @@ export function Navbar() {
   }, [showSearch])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    if (supabase) {
+      await supabase.auth.signOut()
+    }
     router.push('/')
     router.refresh()
   }
