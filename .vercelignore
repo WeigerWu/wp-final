@@ -1,13 +1,24 @@
 # 排除不需要在 Vercel 構建中的文件
+# 注意：不要排除 lib/ 目錄，因為它包含運行時需要的代碼
+
+# 排除文檔和腳本
 scripts
 supabase
 docs
+
+# 排除文檔文件
 *.md
 !README.md
+
+# 排除 SQL 文件
 *.sql
+
+# 排除臨時和測試文件
 *.txt
 *.json
 !package.json
 !package-lock.json
 !tsconfig.json
+
+# 排除圖片資源（如果不在 public 目錄中）
 imcook_icon.png
