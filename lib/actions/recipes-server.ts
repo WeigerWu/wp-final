@@ -85,10 +85,17 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
       console.log(`[getRecipes] 總共獲取到 ${allRecipes.length} 個已發布的食譜`)
       
       // Filter recipes that contain any of the selected tags
+      // Use partial matching: if search tag is "韓式", it will match "韓式料理", "韓式烤肉", etc.
       for (const recipe of allRecipes) {
         const recipeData = recipe as any
         const recipeTags = (recipeData.tags as string[]) || []
-        const hasMatchingTag = options.tags.some(tag => recipeTags.includes(tag))
+        const hasMatchingTag = options.tags.some(tag => {
+          // Check if any recipe tag contains the search tag, or the search tag contains the recipe tag
+          // This allows "韓式" to match "韓式料理" and vice versa
+          return recipeTags.some(recipeTag => 
+            recipeTag.includes(tag) || tag.includes(recipeTag)
+          )
+        })
         
         if (hasMatchingTag) {
           // Check if recipe is published and public (with default values)
