@@ -483,7 +483,7 @@ export async function deleteConversation(conversationId: string): Promise<boolea
     .eq('id', conversationId)
     .single()
 
-  if (!conversation || conversation.user_id !== user.id) {
+  if (!conversation || (conversation as any).user_id !== user.id) {
     throw new Error('Conversation not found or access denied')
   }
 
