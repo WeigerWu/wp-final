@@ -12,30 +12,51 @@ interface RecipeSection {
 }
 
 export default async function HomePage() {
-  // 獲取各個用戶的ID
-  const [chaewonId, yujinId, karinaId] = await Promise.all([
-    getUserIdByUsername('Chaewon'),
-    getUserIdByUsername('Yujin'),
-    getUserIdByUsername('Karina'),
-  ])
+  // 獲取各個用戶的ID（使用錯誤處理）
+  let chaewonId: string | null = null
+  let yujinId: string | null = null
+  let karinaId: string | null = null
 
-  // 獲取各排食譜
-  const [
-    latestRecipes,
-    chaewonRecipes,
-    yujinRecipes,
-    karinaRecipes,
-    meatRecipes,
-  ] = await Promise.all([
-    getRecipes({ limit: 8 }),
-    chaewonId ? getRecipes({ userId: chaewonId, limit: 8 }) : [],
-    yujinId ? getRecipes({ userId: yujinId, limit: 8 }) : [],
-    karinaId ? getRecipes({ userId: karinaId, limit: 8 }) : [],
-    getRecipes({ 
-      ingredientKeywords: ['肉', '豬肉', '牛肉', '雞肉', '羊肉', '鴨肉', '魚肉', '蝦', '蟹', '貝', '肉片', '肉絲', '肉末', '肉丸', '肉排'], 
-      limit: 8 
-    }),
-  ])
+  try {
+    const userIds = await Promise.allSettled([
+      getUserIdByUsername('Chaewon'),
+      getUserIdByUsername('Yujin'),
+      getUserIdByUsername('Karina'),
+    ])
+    chaewonId = userIds[0].status === 'fulfilled' ? userIds[0].value : null
+    yujinId = userIds[1].status === 'fulfilled' ? userIds[1].value : null
+    karinaId = userIds[2].status === 'fulfilled' ? userIds[2].value : null
+  } catch (error) {
+    console.error('[HomePage] Error fetching user IDs:', error)
+  }
+
+  // 獲取各排食譜（使用錯誤處理）
+  let latestRecipes: Awaited<ReturnType<typeof getRecipes>> = []
+  let chaewonRecipes: Awaited<ReturnType<typeof getRecipes>> = []
+  let yujinRecipes: Awaited<ReturnType<typeof getRecipes>> = []
+  let karinaRecipes: Awaited<ReturnType<typeof getRecipes>> = []
+  let meatRecipes: Awaited<ReturnType<typeof getRecipes>> = []
+
+  try {
+    const recipeResults = await Promise.allSettled([
+      getRecipes({ limit: 8 }),
+      chaewonId ? getRecipes({ userId: chaewonId, limit: 8 }) : Promise.resolve([]),
+      yujinId ? getRecipes({ userId: yujinId, limit: 8 }) : Promise.resolve([]),
+      karinaId ? getRecipes({ userId: karinaId, limit: 8 }) : Promise.resolve([]),
+      getRecipes({ 
+        ingredientKeywords: ['肉', '豬肉', '牛肉', '雞肉', '羊肉', '鴨肉', '魚肉', '蝦', '蟹', '貝', '肉片', '肉絲', '肉末', '肉丸', '肉排'], 
+        limit: 8 
+      }),
+    ])
+
+    latestRecipes = recipeResults[0].status === 'fulfilled' ? recipeResults[0].value : []
+    chaewonRecipes = recipeResults[1].status === 'fulfilled' ? recipeResults[1].value : []
+    yujinRecipes = recipeResults[2].status === 'fulfilled' ? recipeResults[2].value : []
+    karinaRecipes = recipeResults[3].status === 'fulfilled' ? recipeResults[3].value : []
+    meatRecipes = recipeResults[4].status === 'fulfilled' ? recipeResults[4].value : []
+  } catch (error) {
+    console.error('[HomePage] Error fetching recipes:', error)
+  }
 
   const sections: RecipeSection[] = [
     {

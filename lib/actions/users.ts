@@ -60,19 +60,28 @@ export async function getUserProfile(userId: string): Promise<Profile | null> {
  * 根據用戶名獲取用戶ID
  */
 export async function getUserIdByUsername(username: string): Promise<string | null> {
-  const supabase = await createServerSupabaseClient()
-  
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('username', username)
-    .single()
+  try {
+    const supabase = await createServerSupabaseClient()
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle() // 使用 maybeSingle() 而不是 single()，避免找不到記錄時拋出錯誤
 
-  if (error) {
-    console.error('[getUserIdByUsername] Error fetching user ID by username:', error)
+    if (error) {
+      // 如果是 PGRST116 (no rows returned)，這是正常的，不是錯誤
+      if (error.code === 'PGRST116') {
+        return null
+      }
+      console.error('[getUserIdByUsername] Error fetching user ID by username:', error)
+      return null
+    }
+
+    return (data as { id: string } | null)?.id || null
+  } catch (err) {
+    console.error('[getUserIdByUsername] Unexpected error:', err)
     return null
   }
-
-  return (data as { id: string } | null)?.id || null
 }
 
