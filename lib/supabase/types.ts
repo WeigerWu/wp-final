@@ -169,6 +169,55 @@ export interface Database {
           updated_at?: string
         }
       }
+      chatbot_conversations: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      chatbot_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          role: 'user' | 'assistant'
+          content: string
+          recipes: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          role: 'user' | 'assistant'
+          content: string
+          recipes?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          role?: 'user' | 'assistant'
+          content?: string
+          recipes?: Json
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

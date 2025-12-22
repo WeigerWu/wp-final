@@ -32,7 +32,7 @@ export default async function HomePage() {
     yujinId ? getRecipes({ userId: yujinId, limit: 8 }) : [],
     karinaId ? getRecipes({ userId: karinaId, limit: 8 }) : [],
     getRecipes({ 
-      tags: ['肉', '豬肉', '牛肉', '雞肉', '羊肉', '烤肉', '肉類'], 
+      ingredientKeywords: ['肉', '豬肉', '牛肉', '雞肉', '羊肉', '鴨肉', '魚肉', '蝦', '蟹', '貝', '肉片', '肉絲', '肉末', '肉丸', '肉排'], 
       limit: 8 
     }),
   ])

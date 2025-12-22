@@ -9,6 +9,7 @@ interface GetRecipesOptions {
   search?: string
   categoryId?: string
   difficulty?: 'easy' | 'medium' | 'hard'
+  ingredientKeywords?: string[] // 食材關鍵字過濾
 }
 
 export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recipe[]> {
@@ -16,6 +17,56 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
   
   // Handle tags filtering first if needed
   let recipeIds: string[] | null = null
+  let ingredientFilteredIds: string[] | null = null
+  
+  // Handle ingredient keywords filtering
+  if (options.ingredientKeywords && options.ingredientKeywords.length > 0) {
+    const allRecipeIds = new Set<string>()
+    
+    // Get all recipes to filter by ingredients
+    const { data: allRecipes, error: fetchError } = await supabase
+      .from('recipes')
+      .select('id, ingredients, status, is_public')
+    
+    if (fetchError) {
+      console.error('[getRecipes] 獲取食譜列表時發生錯誤:', fetchError)
+    } else if (allRecipes) {
+      console.log(`[getRecipes] 總共獲取到 ${allRecipes.length} 個食譜，開始過濾食材`)
+      
+      // Filter recipes that contain any of the ingredient keywords
+      for (const recipe of allRecipes) {
+        const recipeData = recipe as any
+        const recipeIngredients = (recipeData.ingredients as any[]) || []
+        
+        // Check if any ingredient name contains any of the keywords
+        const hasMatchingIngredient = recipeIngredients.some((ingredient: any) => {
+          const ingredientName = (ingredient?.name || '').toLowerCase()
+          return options.ingredientKeywords!.some(keyword => 
+            ingredientName.includes(keyword.toLowerCase())
+          )
+        })
+        
+        if (hasMatchingIngredient) {
+          // Check if recipe is published and public
+          const isPublished = recipeData.status === 'published' || recipeData.status === null || recipeData.status === undefined
+          const isPublic = recipeData.is_public === true || recipeData.is_public === null || recipeData.is_public === undefined
+          
+          if (isPublished && isPublic) {
+            allRecipeIds.add(recipeData.id)
+          }
+        }
+      }
+      
+      console.log(`[getRecipes] 找到 ${allRecipeIds.size} 個符合食材條件的食譜`)
+    }
+    
+    ingredientFilteredIds = Array.from(allRecipeIds)
+    if (ingredientFilteredIds.length === 0) {
+      console.log('[getRecipes] 沒有找到符合食材條件的食譜，返回空陣列')
+      return []
+    }
+  }
+  
   if (options.tags && options.tags.length > 0) {
     // For JSONB array field with Chinese characters, we need to use a different approach
     // The contains() method doesn't work properly with Chinese tags in Supabase
@@ -34,10 +85,17 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
       console.log(`[getRecipes] 總共獲取到 ${allRecipes.length} 個已發布的食譜`)
       
       // Filter recipes that contain any of the selected tags
+      // Use partial matching: if search tag is "韓式", it will match "韓式料理", "韓式烤肉", etc.
       for (const recipe of allRecipes) {
         const recipeData = recipe as any
         const recipeTags = (recipeData.tags as string[]) || []
-        const hasMatchingTag = options.tags.some(tag => recipeTags.includes(tag))
+        const hasMatchingTag = options.tags.some(tag => {
+          // Check if any recipe tag contains the search tag, or the search tag contains the recipe tag
+          // This allows "韓式" to match "韓式料理" and vice versa
+          return recipeTags.some(recipeTag => 
+            recipeTag.includes(tag) || tag.includes(recipeTag)
+          )
+        })
         
         if (hasMatchingTag) {
           // Check if recipe is published and public (with default values)
@@ -59,6 +117,19 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
       console.log('[getRecipes] 沒有找到符合標籤條件的食譜，返回空陣列')
       return []
     }
+  }
+  
+  // If both tags and ingredient filters are applied, find intersection
+  if (recipeIds && ingredientFilteredIds) {
+    const tagSet = new Set(recipeIds)
+    recipeIds = ingredientFilteredIds.filter(id => tagSet.has(id))
+    if (recipeIds.length === 0) {
+      console.log('[getRecipes] 標籤和食材過濾的交集為空，返回空陣列')
+      return []
+    }
+  } else if (ingredientFilteredIds) {
+    // Only ingredient filter is applied
+    recipeIds = ingredientFilteredIds
   }
 
   let query = supabase

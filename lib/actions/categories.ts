@@ -233,8 +233,58 @@ export async function getRecipesByCategorySlug(
   return getRecipesByCategory(category.id, options)
 }
 
-
-
-
+/**
+ * 獲取有食譜的分類（按食譜數量排序）
+ */
+export async function getCategoriesWithRecipes(): Promise<(Category & { recipe_count: number })[]> {
+  const supabase = await createServerSupabaseClient()
+  
+  // 查詢有食譜的分類，並計算每個分類的食譜數量
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('category_id')
+    .eq('status', 'published')
+    .eq('is_public', true)
+    .not('category_id', 'is', null)
+  
+  if (error) {
+    console.error('Error fetching categories with recipes:', error)
+    return []
+  }
+  
+  if (!data || data.length === 0) {
+    return []
+  }
+  
+  // 計算每個分類的食譜數量
+  const categoryCounts = new Map<string, number>()
+  for (const recipe of data) {
+    const categoryId = (recipe as any).category_id
+    if (categoryId) {
+      categoryCounts.set(categoryId, (categoryCounts.get(categoryId) || 0) + 1)
+    }
+  }
+  
+  // 獲取分類詳細資訊
+  const categoryIds = Array.from(categoryCounts.keys())
+  const { data: categories, error: categoriesError } = await supabase
+    .from('categories')
+    .select('*')
+    .in('id', categoryIds)
+  
+  if (categoriesError || !categories) {
+    console.error('Error fetching categories:', categoriesError)
+    return []
+  }
+  
+  // 合併分類資訊和數量，並按數量排序
+  const categoriesWithCounts = categories.map((category: any) => ({
+    ...category,
+    recipe_count: categoryCounts.get(category.id) || 0,
+  })) as (Category & { recipe_count: number })[]
+  
+  // 按數量降序排序
+  return categoriesWithCounts.sort((a, b) => b.recipe_count - a.recipe_count)
+}
 
 
