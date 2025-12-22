@@ -5,6 +5,8 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import { Chatbot } from '@/components/chatbot/Chatbot'
+import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics'
+import { PageViewTracker } from '@/components/analytics/PageViewTracker'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -22,6 +24,7 @@ export default function RootLayout({
     <html lang="zh-TW">
       <body className={inter.className}>
         <AuthProvider>
+          <PageViewTracker />
           <div className="flex min-h-screen flex-col">
             <Navbar />
             <main className="flex-1">{children}</main>
@@ -29,6 +32,9 @@ export default function RootLayout({
           </div>
           <Chatbot />
         </AuthProvider>
+        {process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID && (
+          <GoogleAnalytics />
+        )}
       </body>
     </html>
   )
