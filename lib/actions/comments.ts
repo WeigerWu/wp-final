@@ -1,3 +1,5 @@
+'use client'
+
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Comment } from '@/types/recipe'
 import type { Database } from '@/lib/supabase/types'

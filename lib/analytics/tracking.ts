@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * 自建使用者行為追蹤系統（純前端版本）
  * 記錄使用者活動到 Supabase user_events 資料表
