@@ -48,11 +48,20 @@ export function LoadMoreRecipes({
     setLoading(true)
     try {
       const tags = searchParams.tags ? searchParams.tags.split(',') : undefined
-      const difficulty = searchParams.difficulty as 'easy' | 'medium' | 'hard' | undefined
+      const difficulty = searchParams.difficulty 
+        ? (searchParams.difficulty.includes(',') 
+            ? searchParams.difficulty.split(',') as ('easy' | 'medium' | 'hard')[]
+            : searchParams.difficulty as 'easy' | 'medium' | 'hard')
+        : undefined
+      const categoryId = searchParams.category
+        ? (searchParams.category.includes(',') 
+            ? searchParams.category.split(',')
+            : searchParams.category)
+        : undefined
       const newRecipes = await getRecipesClient({
         search: searchParams.search,
         tags,
-        categoryId: searchParams.category,
+        categoryId,
         difficulty,
         limit,
         offset: recipes.length,
@@ -115,4 +124,3 @@ export function LoadMoreRecipes({
     </>
   )
 }
-

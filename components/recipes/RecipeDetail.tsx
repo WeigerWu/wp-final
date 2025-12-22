@@ -15,6 +15,8 @@ import { CookingMode } from './CookingMode'
 import { TagLink } from './TagLink'
 import { CategoryLink } from './CategoryLink'
 import { exportRecipeToTextFile, exportRecipeToJSONFile, exportRecipeToPDF } from '@/lib/utils/recipe-export'
+import { trackEventClient } from '@/lib/analytics/tracking'
+import { trackEvent } from '@/lib/analytics/ga4'
 
 interface RecipeDetailProps {
   recipe: Recipe
@@ -33,6 +35,18 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUser(data.user)
+    })
+
+    // 追蹤查看食譜事件
+    trackEventClient('view_recipe', {
+      recipe_id: recipe.id,
+      recipe_title: recipe.title,
+      recipe_difficulty: recipe.difficulty,
+      recipe_tags_count: recipe.tags?.length || 0,
+    })
+    trackEvent('view_recipe', {
+      recipe_id: recipe.id,
+      recipe_title: recipe.title,
     })
   }, [])
 
@@ -85,22 +99,60 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
 
   const handleExportText = () => {
     exportRecipeToTextFile(recipe)
+    trackEventClient('export_recipe', {
+      recipe_id: recipe.id,
+      export_format: 'text',
+    })
+    trackEvent('export_recipe', {
+      recipe_id: recipe.id,
+      export_format: 'text',
+    })
     setShowExportMenu(false)
   }
 
   const handleExportJSON = () => {
     exportRecipeToJSONFile(recipe)
+    trackEventClient('export_recipe', {
+      recipe_id: recipe.id,
+      export_format: 'json',
+    })
+    trackEvent('export_recipe', {
+      recipe_id: recipe.id,
+      export_format: 'json',
+    })
     setShowExportMenu(false)
   }
 
   const handleExportPDF = async () => {
     try {
       await exportRecipeToPDF(recipe)
+      trackEventClient('export_recipe', {
+        recipe_id: recipe.id,
+        export_format: 'pdf',
+      })
+      trackEvent('export_recipe', {
+        recipe_id: recipe.id,
+        export_format: 'pdf',
+      })
       setShowExportMenu(false)
     } catch (error) {
       console.error('Error exporting PDF:', error)
       alert('PDF 匯出失敗，請稍後再試')
     }
+  }
+
+  const handleStartCookingMode = () => {
+    setIsCookingMode(true)
+    // 追蹤開始烹飪模式事件
+    trackEventClient('start_cooking_mode', {
+      recipe_id: recipe.id,
+      recipe_title: recipe.title,
+      steps_count: recipe.steps?.length || 0,
+    })
+    trackEvent('start_cooking_mode', {
+      recipe_id: recipe.id,
+      recipe_title: recipe.title,
+    })
   }
 
   if (isCookingMode) {
@@ -224,7 +276,7 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
             />
           </button>
           {/* Cooking Mode */}
-          <Button onClick={() => setIsCookingMode(true)}>
+          <Button onClick={handleStartCookingMode}>
             <ChefHat className="mr-2 h-4 w-4" />
             烹飪模式
           </Button>
@@ -372,4 +424,3 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
     </div>
   )
 }
-

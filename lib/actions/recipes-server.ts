@@ -7,8 +7,8 @@ interface GetRecipesOptions {
   userId?: string
   tags?: string[]
   search?: string
-  categoryId?: string
-  difficulty?: 'easy' | 'medium' | 'hard'
+  categoryId?: string | string[]
+  difficulty?: 'easy' | 'medium' | 'hard' | ('easy' | 'medium' | 'hard')[]
   ingredientKeywords?: string[] // 食材關鍵字過濾
 }
 
@@ -144,7 +144,13 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
   }
 
   if (options.categoryId) {
-    query = query.eq('category_id', options.categoryId)
+    if (Array.isArray(options.categoryId)) {
+      if (options.categoryId.length > 0) {
+        query = query.in('category_id', options.categoryId)
+      }
+    } else {
+      query = query.eq('category_id', options.categoryId)
+    }
   }
 
   if (recipeIds) {
