@@ -10,22 +10,18 @@
 -- 清除現有分類（可選，僅在需要重置時使用）
 -- DELETE FROM public.categories;
 
--- 插入預設分類
+-- 插入預設分類（單一維度分類 - 只保留餐點類型）
 INSERT INTO public.categories (name, slug, description, icon, parent_id, sort_order)
 VALUES
-  -- 主分類
+  -- 主要分類（餐點類型）
   ('主菜', 'main-course', '各種主菜料理', '🍽️', NULL, 1),
   ('湯品', 'soup', '各式湯品和燉品', '🍲', NULL, 2),
   ('甜點', 'dessert', '甜點和點心', '🍰', NULL, 3),
   ('飲料', 'beverage', '各種飲品', '🥤', NULL, 4),
   ('開胃菜', 'appetizer', '前菜和小食', '🥗', NULL, 5),
-  ('早餐', 'breakfast', '早餐料理', '🥐', NULL, 6),
-  ('午餐', 'lunch', '午餐料理', '🍱', NULL, 7),
-  ('晚餐', 'dinner', '晚餐料理', '🍽️', NULL, 8),
-  ('點心', 'snack', '小點心和零食', '🍪', NULL, 9),
-  ('素食', 'vegetarian', '素食料理', '🥬', NULL, 10),
-  ('快速料理', 'quick-meal', '快速簡單的料理', '⚡', NULL, 11),
-  ('健康料理', 'healthy', '健康營養的料理', '💚', NULL, 12)
+  ('沙拉', 'salad', '各種沙拉料理', '🥗', NULL, 6),
+  ('主食', 'staple', '米飯、麵食、麵包等主食', '🍚', NULL, 7),
+  ('醬料/調味品', 'sauce-condiment', '各種醬料和調味品', '🧂', NULL, 8)
 ON CONFLICT (slug) DO NOTHING;
 
 -- 驗證插入的分類

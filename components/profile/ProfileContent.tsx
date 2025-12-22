@@ -33,6 +33,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
   const [profile, setProfile] = useState<ProfileRow | null>(initialProfile || null)
   const [recipes, setRecipes] = useState(initialRecipes)
   const [favoriteRecipes, setFavoriteRecipes] = useState<Recipe[]>([])
+  const [favoriteCount, setFavoriteCount] = useState<number>(0)
   const [activeTab, setActiveTab] = useState<TabType>('recipes')
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -133,6 +134,23 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
 
   const isOwner = (currentUserId || currentUser?.id) === userId
 
+  // Load favorite count on mount (only for owner)
+  useEffect(() => {
+    const checkIsOwner = (currentUserId || currentUser?.id) === userId
+    if (checkIsOwner) {
+      const supabase = createSupabaseClient()
+      supabase
+        .from('recipe_favorites')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .then(({ count, error }) => {
+          if (!error && count !== null) {
+            setFavoriteCount(count)
+          }
+        })
+    }
+  }, [userId, currentUserId, currentUser?.id])
+
   // Check if current user is following this user
   useEffect(() => {
     if (!isOwner && currentUser?.id) {
@@ -146,6 +164,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
     try {
       const favorites = await getUserFavoriteRecipes(userId, { limit: 50 })
       setFavoriteRecipes(favorites)
+      setFavoriteCount(favorites.length) // Update count when loading full list
     } catch (error) {
       console.error('Error loading favorite recipes:', error)
     } finally {
@@ -368,7 +387,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
   if (!profile) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-gray-600">載入中...</p>
+        <p className="text-gray-600 dark:text-gray-400">載入中...</p>
       </div>
     )
   }
@@ -380,13 +399,13 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
   return (
     <div className="space-y-8">
       {/* Profile Header */}
-      <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-8 shadow-sm">
         <div className="flex flex-col space-y-6 md:flex-row md:items-start md:space-x-6 md:space-y-0">
           {/* Avatar */}
           <div className="flex-shrink-0">
             {isEditing && isOwner ? (
               <div className="space-y-2">
-                <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-gray-200 bg-gray-100">
+                <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700">
                   {avatarPreview ? (
                     <Image
                       src={avatarPreview}
@@ -404,17 +423,17 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                       sizes="128px"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-4xl font-bold text-gray-400">
+                    <div className="flex h-full items-center justify-center text-4xl font-bold text-gray-400 dark:text-gray-500">
                       {displayNameToShow[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     上傳大頭貼
                   </label>
                   <div className="space-y-2">
-                    <label className="flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <label className="flex cursor-pointer items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                       <Upload className="mr-2 h-4 w-4" />
                       <span>選擇圖片</span>
                       <input
@@ -425,18 +444,18 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                       />
                     </label>
                     {avatarFile && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         已選擇: {avatarFile.name}
                       </p>
                     )}
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       支援 JPG、PNG 等圖片格式，檔案大小不超過 10MB
                     </p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-gray-200 bg-gray-100">
+              <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700">
                 {profile.avatar_url ? (
                   <Image
                     src={profile.avatar_url}
@@ -446,7 +465,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                     sizes="128px"
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-4xl font-bold text-gray-400">
+                  <div className="flex h-full items-center justify-center text-4xl font-bold text-gray-400 dark:text-gray-500">
                     {displayNameToShow[0]?.toUpperCase() || 'U'}
                   </div>
                 )}
@@ -459,37 +478,37 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
             {isEditing && isOwner ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     顯示名稱
                   </label>
                   <input
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 focus:border-primary-500 dark:focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     使用者名稱 (Handle)
                   </label>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 focus:border-primary-500 dark:focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400"
                   />
-                  <p className="mt-1 text-xs text-gray-500">將顯示為 @{username}</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">將顯示為 @{username}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     個人簡介
                   </label>
                   <textarea
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
                     rows={4}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 focus:border-primary-500 dark:focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400"
                   />
                 </div>
                 <div className="flex space-x-2">
@@ -520,10 +539,10 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                       {displayNameToShow}
                     </h1>
-                    <p className="mt-1 text-lg text-gray-600">{handle}</p>
+                    <p className="mt-1 text-lg text-gray-600 dark:text-gray-400">{handle}</p>
                   </div>
                   {isOwner ? (
                     <Button
@@ -556,24 +575,24 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                 </div>
                 
                 {profile.bio && (
-                  <p className="text-gray-700 whitespace-pre-wrap">{profile.bio}</p>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{profile.bio}</p>
                 )}
 
-                <div className="flex items-center space-x-6 text-sm text-gray-500">
+                <div className="flex items-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-4 w-4" />
                     <span>加入時間：{joinDate}</span>
                   </div>
                   <Link
                     href={`/profile/${userId}/followers`}
-                    className="flex items-center space-x-1 hover:text-primary-600 transition-colors cursor-pointer"
+                    className="flex items-center space-x-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer"
                   >
                     <Users className="h-4 w-4" />
                     <span>{(profile as any).follower_count || 0} 位追蹤者</span>
                   </Link>
                   <Link
                     href={`/profile/${userId}/following`}
-                    className="flex items-center space-x-1 hover:text-primary-600 transition-colors cursor-pointer"
+                    className="flex items-center space-x-1 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer"
                   >
                     <Users className="h-4 w-4" />
                     <span>追蹤 {(profile as any).following_count || 0} 位用戶</span>
@@ -586,14 +605,14 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 dark:border-gray-700">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => handleTabChange('recipes')}
             className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors ${
               activeTab === 'recipes'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                ? 'border-primary-500 dark:border-primary-400 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             食譜 ({recipeCount})
@@ -603,12 +622,12 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
               onClick={() => handleTabChange('favorites')}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors flex items-center space-x-1 ${
                 activeTab === 'favorites'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-primary-500 dark:border-primary-400 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
               <Heart className="h-4 w-4" />
-              <span>收藏 ({isLoading ? '...' : favoriteRecipes.length})</span>
+              <span>收藏 ({isLoading ? '...' : favoriteCount})</span>
             </button>
           )}
         </nav>
@@ -639,8 +658,8 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                 )}
               </>
             ) : (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center">
-                <p className="text-gray-600">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-12 text-center">
+                <p className="text-gray-600 dark:text-gray-400">
                   {isOwner ? '您尚未上傳任何食譜' : '此用戶尚未上傳任何食譜'}
                 </p>
               </div>
@@ -650,7 +669,7 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
           <>
             {isLoading ? (
               <div className="flex min-h-[200px] items-center justify-center">
-                <p className="text-gray-600">載入中...</p>
+                <p className="text-gray-600 dark:text-gray-400">載入中...</p>
               </div>
             ) : favoriteRecipes.length > 0 ? (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -659,9 +678,9 @@ export function ProfileContent({ userId, initialRecipes, currentUserId, initialP
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-12 text-center">
-                <Heart className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-4 text-gray-600">尚未收藏任何食譜</p>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-12 text-center">
+                <Heart className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                <p className="mt-4 text-gray-600 dark:text-gray-400">尚未收藏任何食譜</p>
               </div>
             )}
           </>

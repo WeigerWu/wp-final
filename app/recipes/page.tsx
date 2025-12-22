@@ -17,11 +17,20 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
   const limit = 12
 
   const tags = searchParams.tags ? searchParams.tags.split(',') : undefined
-  const difficulty = searchParams.difficulty as 'easy' | 'medium' | 'hard' | undefined
+  const difficulty = searchParams.difficulty 
+    ? (searchParams.difficulty.includes(',') 
+        ? searchParams.difficulty.split(',') as ('easy' | 'medium' | 'hard')[]
+        : searchParams.difficulty as 'easy' | 'medium' | 'hard')
+    : undefined
+  const categoryId = searchParams.category
+    ? (searchParams.category.includes(',') 
+        ? searchParams.category.split(',')
+        : searchParams.category)
+    : undefined
   const recipes = await getRecipes({
     search: searchParams.search,
     tags,
-    categoryId: searchParams.category,
+    categoryId,
     difficulty,
     limit,
     offset: 0,
@@ -29,18 +38,22 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="mb-4 text-3xl font-bold dark:text-gray-100">探索食譜</h1>
+      <div className="mb-6">
+        <h1 className="mb-2 text-3xl font-bold dark:text-gray-100">探索食譜</h1>
         <p className="text-gray-600 dark:text-gray-400">發現來自世界各地的美味食譜</p>
       </div>
 
-      {/* Search and Filter */}
-      <div className="mb-8 space-y-4">
+      {/* Search Bar */}
+      <div className="mb-4">
         <SearchBar />
+      </div>
+
+      {/* Filter Bar */}
+      <div className="mb-6">
         <FilterBar />
       </div>
 
-      {/* Load More Recipes Component */}
+      {/* Recipes Content */}
       <LoadMoreRecipes 
         initialRecipes={recipes}
         searchParams={{
