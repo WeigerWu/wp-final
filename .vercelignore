@@ -1,0 +1,29 @@
+# Vercel 構建時忽略的檔案和目錄
+# 這些檔案不會被包含在構建過程中，可以減少構建追蹤的負擔
+
+# 開發腳本
+scripts/
+
+# Supabase SQL 檔案
+supabase/
+
+# 測試圖片（包含空格的目錄名稱）
+test image/
+
+# 文檔檔案目錄
+docs/
+
+# 特定文檔檔案（保留 README.md 因為可能需要）
+SETUP_GUIDE.md
+TROUBLESHOOTING.md
+PROJECT_SUMMARY.md
+DISABLE_EMAIL_CONFIRMATION.md
+README_TAGS_FIX.md
+plan.md
+
+# 其他不需要的檔案
+category-fix-results.json
+suspicious-categories-report.txt
+suspicious-categories.json
+suspicious-categories.txt
+

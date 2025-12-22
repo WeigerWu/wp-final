@@ -18,6 +18,7 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
   },
   // 排除不需要在構建追蹤中的目錄，避免堆疊溢出錯誤
+  // 注意：包含空格的目錄名稱使用 .vercelignore 處理
   outputFileTracingExcludes: {
     '*': [
       'node_modules/@swc/core-linux-x64-gnu/**',
@@ -25,7 +26,6 @@ const nextConfig = {
       'node_modules/@esbuild/linux-x64/**',
       'scripts/**',
       'supabase/**',
-      'test image/**',
       'docs/**',
     ],
   },
