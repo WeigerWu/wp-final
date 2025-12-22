@@ -46,9 +46,11 @@ export function initGA4(measurementId: string) {
     script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`
     document.head.appendChild(script)
 
-    window.dataLayer = window.dataLayer || []
-    function gtag(...args: any[]) {
-      window.dataLayer.push(args)
+    if (!window.dataLayer) {
+      window.dataLayer = []
+    }
+    const gtag = (...args: any[]) => {
+      window.dataLayer!.push(args)
     }
     window.gtag = gtag
 
@@ -111,8 +113,8 @@ export function clearUserId() {
 // 擴展 Window 介面
 declare global {
   interface Window {
-    dataLayer: any[]
-    gtag: (...args: any[]) => void
+    dataLayer?: any[]
+    gtag?: (...args: any[]) => void
   }
 }
 

@@ -18,7 +18,7 @@ export function PageViewTracker() {
     const fullPath = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '')
 
     // 追蹤到自建系統
-    trackPageView(fullPath, document.title, false)
+    trackPageView(fullPath, document.title)
 
     // 追蹤到 GA4
     trackGA4PageView(fullPath, document.title)

@@ -1,9 +1,9 @@
 'use client'
 
-import { GoogleAnalytics as NextGoogleAnalytics } from '@next/third-parties/google'
 import { useEffect } from 'react'
+import Script from 'next/script'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { setUserId, clearUserId } from '@/lib/analytics/ga4'
+import { setUserId, clearUserId, initGA4 } from '@/lib/analytics/ga4'
 
 /**
  * Google Analytics 4 元件
@@ -19,6 +19,9 @@ export function GoogleAnalytics() {
       return
     }
 
+    // 初始化 GA4
+    initGA4(measurementId)
+
     // 設定或清除使用者 ID
     if (user) {
       setUserId(user.id)
@@ -31,6 +34,27 @@ export function GoogleAnalytics() {
     return null
   }
 
-  return <NextGoogleAnalytics gaId={measurementId} />
+  return (
+    <>
+      <Script
+        strategy="afterInteractive"
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+      />
+      <Script
+        id="google-analytics"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${measurementId}', {
+              page_path: window.location.pathname,
+            });
+          `,
+        }}
+      />
+    </>
+  )
 }
 
