@@ -8,6 +8,7 @@ interface SearchPageProps {
     search?: string
     tags?: string
     difficulty?: string
+    category?: string
     page?: string
   }
 }
@@ -18,10 +19,20 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const offset = (page - 1) * limit
 
   const tags = searchParams.tags ? searchParams.tags.split(',') : undefined
-  const difficulty = searchParams.difficulty as 'easy' | 'medium' | 'hard' | undefined
+  const difficulty = searchParams.difficulty 
+    ? (searchParams.difficulty.includes(',') 
+        ? searchParams.difficulty.split(',') as ('easy' | 'medium' | 'hard')[]
+        : searchParams.difficulty as 'easy' | 'medium' | 'hard')
+    : undefined
+  const categoryId = searchParams.category
+    ? (searchParams.category.includes(',') 
+        ? searchParams.category.split(',')
+        : searchParams.category)
+    : undefined
   const recipes = await getRecipes({
     search: searchParams.search,
     tags,
+    categoryId,
     difficulty,
     limit,
     offset,

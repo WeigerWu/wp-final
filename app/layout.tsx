@@ -13,6 +13,13 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: "I'm cooked - 探索、分享、烹飪",
   description: "一個可供使用者上傳、探索與分享食譜的網站平台，結合社群互動與智慧推薦機制",
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: '/favicon.png',
+  },
 }
 
 export default function RootLayout({

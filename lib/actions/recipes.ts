@@ -389,8 +389,8 @@ export async function getRecipesClient(options: {
   userId?: string
   tags?: string[]
   search?: string
-  categoryId?: string
-  difficulty?: 'easy' | 'medium' | 'hard'
+  categoryId?: string | string[]
+  difficulty?: 'easy' | 'medium' | 'hard' | ('easy' | 'medium' | 'hard')[]
 } = {}): Promise<Recipe[]> {
   const supabase = createSupabaseClient()
   
@@ -438,7 +438,13 @@ export async function getRecipesClient(options: {
   }
 
   if (options.categoryId) {
-    query = query.eq('category_id', options.categoryId)
+    if (Array.isArray(options.categoryId)) {
+      if (options.categoryId.length > 0) {
+        query = query.in('category_id', options.categoryId)
+      }
+    } else {
+      query = query.eq('category_id', options.categoryId)
+    }
   }
 
   if (recipeIds) {
@@ -450,7 +456,13 @@ export async function getRecipesClient(options: {
   }
 
   if (options.difficulty) {
-    query = query.eq('difficulty', options.difficulty)
+    if (Array.isArray(options.difficulty)) {
+      if (options.difficulty.length > 0) {
+        query = query.in('difficulty', options.difficulty)
+      }
+    } else {
+      query = query.eq('difficulty', options.difficulty)
+    }
   }
 
   if (options.limit) {
