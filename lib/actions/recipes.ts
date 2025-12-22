@@ -1,6 +1,8 @@
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Recipe } from '@/types/recipe'
 import { Database } from '@/lib/supabase/types'
+import { trackEventClient } from '@/lib/analytics/tracking'
+import { trackEvent } from '@/lib/analytics/ga4'
 
 type RecipeRow = Database['public']['Tables']['recipes']['Row']
 
@@ -37,6 +39,21 @@ export async function createRecipe(recipeData: {
   if (error) {
     console.error('Error creating recipe:', error)
     throw error
+  }
+
+  // 追蹤建立食譜事件
+  if (data) {
+    trackEventClient('create_recipe', {
+      recipe_id: data.id,
+      recipe_title: recipeData.title,
+      tags_count: recipeData.tags?.length || 0,
+      steps_count: recipeData.steps?.length || 0,
+      ingredients_count: recipeData.ingredients?.length || 0,
+    })
+    trackEvent('create_recipe', {
+      recipe_id: data.id,
+      recipe_title: recipeData.title,
+    })
   }
 
   return data as Recipe
@@ -79,6 +96,17 @@ export async function updateRecipe(
     throw error
   }
 
+  // 追蹤編輯食譜事件
+  if (data) {
+    trackEventClient('edit_recipe', {
+      recipe_id: id,
+      recipe_title: recipeData.title || data.title,
+    })
+    trackEvent('edit_recipe', {
+      recipe_id: id,
+    })
+  }
+
   return data as Recipe
 }
 
@@ -92,6 +120,13 @@ export async function deleteRecipe(id: string): Promise<boolean> {
     throw new Error('User not authenticated')
   }
 
+  // 先取得食譜資訊用於追蹤
+  const { data: recipeData } = await supabase
+    .from('recipes')
+    .select('title')
+    .eq('id', id)
+    .single()
+
   const { error } = await supabase
     .from('recipes')
     .delete()
@@ -102,6 +137,15 @@ export async function deleteRecipe(id: string): Promise<boolean> {
     console.error('Error deleting recipe:', error)
     throw error
   }
+
+  // 追蹤刪除食譜事件
+  trackEventClient('delete_recipe', {
+    recipe_id: id,
+    recipe_title: (recipeData as any)?.title || 'Unknown',
+  })
+  trackEvent('delete_recipe', {
+    recipe_id: id,
+  })
 
   return true
 }
@@ -158,6 +202,16 @@ export async function rateRecipe(recipeId: string, rating: number): Promise<bool
     throw error
   }
 
+  // 追蹤評分事件
+  trackEventClient('rate_recipe', {
+    recipe_id: recipeId,
+    rating: rating,
+  })
+  trackEvent('rate_recipe', {
+    recipe_id: recipeId,
+    rating: rating,
+  })
+
   return true
 }
 
@@ -189,11 +243,28 @@ export async function favoriteRecipe(recipeId: string): Promise<boolean> {
         console.error('Error unfavoriting recipe:', deleteError)
         throw deleteError
       }
+      
+      // 追蹤取消收藏事件
+      trackEventClient('unfavorite_recipe', {
+        recipe_id: recipeId,
+      })
+      trackEvent('unfavorite_recipe', {
+        recipe_id: recipeId,
+      })
+      
       return false
     }
     console.error('Error favoriting recipe:', error)
     throw error
   }
+
+  // 追蹤收藏事件
+  trackEventClient('favorite_recipe', {
+    recipe_id: recipeId,
+  })
+  trackEvent('favorite_recipe', {
+    recipe_id: recipeId,
+  })
 
   return true
 }
@@ -218,6 +289,14 @@ export async function unfavoriteRecipe(recipeId: string): Promise<boolean> {
     console.error('Error unfavoriting recipe:', error)
     throw error
   }
+
+  // 追蹤取消收藏事件
+  trackEventClient('unfavorite_recipe', {
+    recipe_id: recipeId,
+  })
+  trackEvent('unfavorite_recipe', {
+    recipe_id: recipeId,
+  })
 
   return true
 }

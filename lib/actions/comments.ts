@@ -1,6 +1,8 @@
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Comment } from '@/types/recipe'
 import type { Database } from '@/lib/supabase/types'
+import { trackEventClient } from '@/lib/analytics/tracking'
+import { trackEvent } from '@/lib/analytics/ga4'
 
 export async function getComments(recipeId: string): Promise<Comment[]> {
   const supabase = createSupabaseClient()
@@ -142,12 +144,27 @@ export async function createComment(
     }
   }
 
-  return {
+  const comment = {
     ...data,
     user: profile || { username: 'Unknown', avatar_url: null },
     parent_user: parentUser,
     replies: [],
   } as Comment
+
+  // 追蹤留言事件
+  trackEventClient('add_comment', {
+    comment_id: data.id,
+    recipe_id: recipeId,
+    is_reply: !!parentId,
+    parent_comment_id: parentId || null,
+  })
+  trackEvent('add_comment', {
+    comment_id: data.id,
+    recipe_id: recipeId,
+    is_reply: !!parentId,
+  })
+
+  return comment
 }
 
 export async function updateComment(
@@ -211,6 +228,14 @@ export async function deleteComment(id: string): Promise<boolean> {
     console.error('Error deleting comment:', error)
     throw error
   }
+
+  // 追蹤刪除留言事件
+  trackEventClient('delete_comment', {
+    comment_id: id,
+  })
+  trackEvent('delete_comment', {
+    comment_id: id,
+  })
 
   return true
 }
