@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 使用 standalone 輸出模式可以避免構建追蹤階段的堆疊溢出問題
-  output: 'standalone',
   images: {
     domains: ['res.cloudinary.com', 'images.unsplash.com', 'img.spoonacular.com'],
     remotePatterns: [
@@ -15,16 +13,19 @@ const nextConfig = {
       },
     ],
   },
-  // 優化構建性能
+  // 優化構建性能，減少構建追蹤的負擔
   experimental: {
-    // 減少構建追蹤的深度
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     // html2pdf.js 是純客戶端庫，不應該在服務器端打包
     if (isServer) {
       config.externals = config.externals || []
       config.externals.push('html2pdf.js')
+    }
+    // 在生產構建中禁用緩存以減少內存使用（可能幫助避免堆疊溢出）
+    if (!dev) {
+      config.cache = false
     }
     return config
   },
