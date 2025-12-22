@@ -50,7 +50,7 @@ export async function getUserEvents(options: {
 
   let query = adminSupabase
     .from('user_events')
-    .select('*, profiles:user_id(username, display_name)', { count: 'exact' })
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
 
   if (options.userId) {
@@ -84,7 +84,39 @@ export async function getUserEvents(options: {
     throw error
   }
 
-  return { data: data || [], count: count || 0 }
+  let eventsWithProfiles: any[] = data || []
+
+  // 手動關聯使用者資料（因為 user_events.user_id 沒有直接的 FK 到 profiles）
+  if (data && data.length > 0) {
+    const userIds = Array.from(
+      new Set(
+        data
+          .map((event: any) => event.user_id)
+          .filter((id: string | null | undefined) => !!id)
+      )
+    )
+
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await (adminSupabase
+        .from('profiles')
+        .select('id, username, display_name') as any).in('id', userIds as any)
+
+      if (profilesError) {
+        console.error('Error fetching profiles for user events:', profilesError)
+      } else if (profiles) {
+        const profileMap = new Map(
+          (profiles as any[]).map((p: any) => [p.id, p])
+        )
+
+        eventsWithProfiles = data.map((event: any) => ({
+          ...event,
+          profiles: event.user_id ? profileMap.get(event.user_id) || null : null,
+        }))
+      }
+    }
+  }
+
+  return { data: eventsWithProfiles, count: count || 0 }
 }
 
 /**
@@ -199,7 +231,7 @@ export async function getActiveUsers(options: {
 
   const { data, error } = await adminSupabase
     .from('user_events')
-    .select('user_id, profiles:user_id(username, display_name, created_at)')
+    .select('user_id, created_at')
     .not('user_id', 'is', null)
     .gte('created_at', startDate.toISOString())
     .order('created_at', { ascending: false })
@@ -211,15 +243,19 @@ export async function getActiveUsers(options: {
   }
 
   // 統計每個使用者的活動次數
-  const userActivityMap = new Map<string, { count: number; lastActivity: string; profile: any }>()
+  const userActivityMap = new Map<
+    string,
+    { count: number; lastActivity: string }
+  >()
 
   data?.forEach((event: any) => {
     const userId = event.user_id
+    if (!userId) return
+
     if (!userActivityMap.has(userId)) {
       userActivityMap.set(userId, {
         count: 0,
         lastActivity: event.created_at,
-        profile: event.profiles,
       })
     }
     const userData = userActivityMap.get(userId)!
@@ -229,9 +265,32 @@ export async function getActiveUsers(options: {
     }
   })
 
+  // 取得這些使用者的基本資料
+  const activeUserIds = Array.from(userActivityMap.keys())
+  let profileMap = new Map<string, any>()
+
+  if (activeUserIds.length > 0) {
+    const { data: profiles, error: profilesError } = await (adminSupabase
+      .from('profiles')
+      .select('id, username, display_name, created_at') as any).in(
+      'id',
+      activeUserIds as any
+    )
+
+    if (profilesError) {
+      console.error('Error fetching profiles for active users:', profilesError)
+    } else if (profiles) {
+      profileMap = new Map(
+        (profiles as any[]).map((p: any) => [p.id, p])
+      )
+    }
+  }
+
   return Array.from(userActivityMap.entries()).map(([userId, data]) => ({
     userId,
-    ...data,
+    count: data.count,
+    lastActivity: data.lastActivity,
+    profile: profileMap.get(userId) || null,
   }))
 }
 
