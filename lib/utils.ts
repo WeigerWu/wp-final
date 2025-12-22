@@ -22,9 +22,15 @@ export function formatTime(minutes: number | null): string {
   return `${hours} 小時 ${mins} 分鐘`
 }
 
+export function formatDateTime(date: string | Date): string {
+  return new Date(date).toLocaleTimeString('zh-TW', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function truncate(text: string, length: number): string {
   if (text.length <= length) return text
   return text.slice(0, length) + '...'
 }
-
 

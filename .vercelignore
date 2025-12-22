@@ -1,0 +1,13 @@
+# 排除不需要在 Vercel 構建中的文件
+scripts
+supabase
+docs
+*.md
+!README.md
+*.sql
+*.txt
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+imcook_icon.png

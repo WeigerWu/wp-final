@@ -1,7 +1,7 @@
 'use client'
 
-import { GoogleAnalytics as NextGoogleAnalytics } from '@next/third-parties/google'
 import { useEffect } from 'react'
+import Script from 'next/script'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { setUserId, clearUserId } from '@/lib/analytics/ga4'
 
@@ -19,18 +19,44 @@ export function GoogleAnalytics() {
       return
     }
 
-    // 設定或清除使用者 ID
-    if (user) {
-      setUserId(user.id)
-    } else {
-      clearUserId()
-    }
+    // 設定或清除使用者 ID（GA4 腳本載入後會自動初始化）
+    // 使用 setTimeout 確保腳本已載入
+    const timer = setTimeout(() => {
+      if (user) {
+        setUserId(user.id)
+      } else {
+        clearUserId()
+      }
+    }, 100)
+
+    return () => clearTimeout(timer)
   }, [user, measurementId])
 
   if (!measurementId) {
     return null
   }
 
-  return <NextGoogleAnalytics gaId={measurementId} />
+  return (
+    <>
+      <Script
+        strategy="afterInteractive"
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+      />
+      <Script
+        id="google-analytics"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${measurementId}', {
+              page_path: window.location.pathname,
+            });
+          `,
+        }}
+      />
+    </>
+  )
 }
 

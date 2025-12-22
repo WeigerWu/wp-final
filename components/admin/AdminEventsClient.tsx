@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { formatDate, formatTime } from '@/lib/utils'
+import { formatDate, formatDateTime } from '@/lib/utils'
 import { Calendar, User, Activity, TrendingUp, Users, Filter, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
@@ -313,7 +313,7 @@ export function AdminEventsClient({
                 <tr key={event.id} className="hover:bg-gray-50 dark:hover:bg-gray-900">
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     <div>{formatDate(event.created_at)}</div>
-                    <div className="text-xs text-gray-500">{formatTime(event.created_at)}</div>
+                    <div className="text-xs text-gray-500">{formatDateTime(event.created_at)}</div>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {event.profiles ? (

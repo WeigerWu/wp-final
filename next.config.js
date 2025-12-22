@@ -13,6 +13,11 @@ const nextConfig = {
       },
     ],
   },
+  // 優化構建性能
+  experimental: {
+    // 減少構建追蹤的深度
+    optimizePackageImports: ['lucide-react'],
+  },
   webpack: (config, { isServer }) => {
     // html2pdf.js 是純客戶端庫，不應該在服務器端打包
     if (isServer) {
