@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export function Footer() {
   return (
@@ -6,7 +7,16 @@ export function Footer() {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div>
-            <h3 className="mb-4 text-lg font-semibold dark:text-gray-100">I'm cooked</h3>
+            <Link href="/" className="flex items-center space-x-2 mb-4">
+              <Image
+                src="/imcook_icon.png"
+                alt="I'm cooked logo"
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+              <h3 className="text-lg font-semibold dark:text-gray-100">I'm cooked</h3>
+            </Link>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               探索、分享、烹飪美味的食譜世界
             </p>
