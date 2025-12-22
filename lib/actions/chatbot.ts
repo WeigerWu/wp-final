@@ -399,8 +399,8 @@ export async function getUserConversations() {
     throw new Error('User not authenticated')
   }
 
-  const { data, error } = await supabase
-    .from('chatbot_conversations')
+  const { data, error } = await (supabase
+    .from('chatbot_conversations') as any)
     .select('*')
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
@@ -423,8 +423,8 @@ export async function getConversationMessages(conversationId: string) {
   }
 
   // 驗證對話屬於當前用戶
-  const { data: conversation } = await supabase
-    .from('chatbot_conversations')
+  const { data: conversation } = await (supabase
+    .from('chatbot_conversations') as any)
     .select('user_id')
     .eq('id', conversationId)
     .single()
@@ -433,8 +433,8 @@ export async function getConversationMessages(conversationId: string) {
     throw new Error('Conversation not found or access denied')
   }
 
-  const { data, error } = await supabase
-    .from('chatbot_messages')
+  const { data, error } = await (supabase
+    .from('chatbot_messages') as any)
     .select('*')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
@@ -477,8 +477,8 @@ export async function deleteConversation(conversationId: string): Promise<boolea
   }
 
   // 驗證對話屬於當前用戶
-  const { data: conversation } = await supabase
-    .from('chatbot_conversations')
+  const { data: conversation } = await (supabase
+    .from('chatbot_conversations') as any)
     .select('user_id')
     .eq('id', conversationId)
     .single()
@@ -488,8 +488,8 @@ export async function deleteConversation(conversationId: string): Promise<boolea
   }
 
   // 刪除對話（由於 CASCADE，會自動刪除所有相關訊息）
-  const { error } = await supabase
-    .from('chatbot_conversations')
+  const { error } = await (supabase
+    .from('chatbot_conversations') as any)
     .delete()
     .eq('id', conversationId)
 
