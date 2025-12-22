@@ -13,7 +13,8 @@ interface GetRecipesOptions {
 }
 
 export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recipe[]> {
-  const supabase = await createServerSupabaseClient()
+  try {
+    const supabase = await createServerSupabaseClient()
   
   // Handle tags filtering first if needed
   let recipeIds: string[] | null = null
@@ -249,6 +250,11 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
   )
 
   return recipesWithStats
+  } catch (error) {
+    console.error('[getRecipes] Unexpected error:', error)
+    // 返回空陣列而不是拋出錯誤，避免導致 500 錯誤
+    return []
+  }
 }
 
 /**
