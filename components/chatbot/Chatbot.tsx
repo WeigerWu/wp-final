@@ -6,7 +6,7 @@ import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import { Recipe } from '@/types/recipe'
-import { chatWithRecipeAssistant, getConversationMessages } from '@/lib/actions/chatbot'
+import { chatWithRecipeAssistant, getConversationMessages, deleteConversation } from '@/lib/actions/chatbot'
 import Link from 'next/link'
 
 interface Message {
@@ -26,6 +26,8 @@ export function Chatbot() {
   ])
   const [isLoading, setIsLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | undefined>(undefined)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
 
   // 載入對話歷史（如果有的話）
   useEffect(() => {
@@ -58,6 +60,35 @@ export function Chatbot() {
       }
     } catch (error) {
       console.error('Error loading conversation history:', error)
+    }
+  }
+
+  const handleDeleteConversation = async () => {
+    if (!conversationId || !user) {
+      return
+    }
+
+    if (!confirm('確定要刪除所有對話紀錄嗎？此操作無法復原。')) {
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      await deleteConversation(conversationId)
+      
+      // 重置對話狀態
+      setConversationId(undefined)
+      setMessages([
+        {
+          role: 'assistant',
+          content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難度和時間推薦\n\n請問你需要什麼幫助呢？'
+        }
+      ])
+    } catch (error) {
+      console.error('Error deleting conversation:', error)
+      alert('刪除對話失敗，請稍後再試')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -98,21 +129,30 @@ export function Chatbot() {
     }
   }
 
+  const handleClose = () => {
+    setIsClosing(true)
+    // 等待動畫完成後再關閉
+    setTimeout(() => {
+      setIsOpen(false)
+      setIsClosing(false)
+    }, 300) // 動畫時長 300ms
+  }
+
   // 如果未登入，只顯示按鈕（點擊後會顯示登入提示）
   if (!authLoading && !user) {
     if (!isOpen) {
       return (
         <button
           onClick={() => setIsOpen(true)}
-          className="group fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-2xl shadow-primary-500/50 transition-all duration-300 hover:scale-110 hover:shadow-primary-500/70 hover:from-primary-600 hover:to-primary-700"
+          className="group fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-2xl shadow-primary-500/50 transition-all duration-300 hover:scale-110 hover:shadow-primary-500/70 hover:from-primary-600 hover:to-primary-700"
           aria-label="開啟聊天"
         >
-          <svg className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          <svg className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337L5 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
           </svg>
-          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+          <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75"></span>
-            <span className="relative inline-flex h-4 w-4 rounded-full bg-primary-500"></span>
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-primary-500"></span>
           </span>
         </button>
       )
@@ -120,26 +160,43 @@ export function Chatbot() {
     // 如果已打開但未登入，繼續顯示聊天視窗（下面會顯示登入提示）
   }
 
-  if (!isOpen) {
+  if (!isOpen && !isClosing) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="group fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-2xl shadow-primary-500/50 transition-all duration-300 hover:scale-110 hover:shadow-primary-500/70 hover:from-primary-600 hover:to-primary-700"
+        className="group fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-2xl shadow-primary-500/50 transition-all duration-300 hover:scale-110 hover:shadow-primary-500/70 hover:from-primary-600 hover:to-primary-700"
         aria-label="開啟聊天"
       >
-        <svg className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        <svg className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337L5 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
         </svg>
-        <span className="absolute -top-1 -right-1 flex h-4 w-4">
+        <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75"></span>
-          <span className="relative inline-flex h-4 w-4 rounded-full bg-primary-500"></span>
+          <span className="relative inline-flex h-3 w-3 rounded-full bg-primary-500"></span>
         </span>
       </button>
     )
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex h-[600px] w-[400px] flex-col overflow-hidden rounded-2xl border border-gray-200/50 bg-white/95 backdrop-blur-xl shadow-2xl shadow-gray-900/10 transition-all duration-300 dark:border-gray-700/50 dark:bg-gray-800/95">
+    <>
+      {/* 背景遮罩 */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/20 backdrop-blur-sm transition-opacity duration-300 ${
+          isClosing ? 'opacity-0' : 'opacity-100'
+        }`}
+        onClick={handleClose}
+        aria-hidden="true"
+      />
+      {/* Chatbot 視窗 */}
+      <div 
+        className={`fixed bottom-6 right-6 z-50 flex h-[600px] w-[400px] flex-col overflow-hidden rounded-2xl border border-gray-200/50 bg-white/95 backdrop-blur-xl shadow-2xl shadow-gray-900/10 transition-all duration-300 dark:border-gray-700/50 dark:bg-gray-800/95 ${
+          isClosing 
+            ? 'translate-y-5 scale-95 opacity-0' 
+            : 'translate-y-0 scale-100 opacity-100'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200/50 bg-gradient-to-r from-primary-50 to-transparent px-5 py-4 dark:border-gray-700/50 dark:from-primary-900/20">
         <div className="flex items-center gap-3">
@@ -154,7 +211,7 @@ export function Chatbot() {
           </div>
         </div>
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={handleClose}
           className="rounded-lg p-1.5 text-gray-400 transition-all duration-200 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
           aria-label="關閉聊天"
         >
@@ -208,10 +265,12 @@ export function Chatbot() {
       </div>
 
       {/* Quick Actions - 永遠顯示初始選項 */}
-      {!isLoading && (
+      {!isLoading && !isDeleting && (
         <QuickActions 
-          onSelect={handleSend} 
+          onSelect={handleSend}
+          onDelete={handleDeleteConversation}
           context="initial"
+          showDelete={conversationId !== undefined && messages.length > 1}
         />
       )}
 
@@ -234,7 +293,8 @@ export function Chatbot() {
           </Link>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
 

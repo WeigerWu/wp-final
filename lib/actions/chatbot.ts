@@ -30,9 +30,14 @@ const SYSTEM_PROMPT = `你是一個專業的食譜推薦助手，專門幫助用
 
 **回答格式：**
 當推薦食譜時，請使用以下格式：
-1. 簡要說明為什麼推薦這些食譜
-2. 列出推薦的食譜（只使用提供的食譜資訊，包含標題、難度、時間、評分）
+1. 簡要說明為什麼推薦這些食譜（1-2 句話即可）
+2. 簡潔列出推薦的食譜（只使用提供的食譜資訊，包含標題、難度、時間、評分，每個食譜 1-2 句話描述）
 3. **不要提到「連結提示」或「查看食譜」等文字，因為系統會自動在下方顯示可點擊的食譜卡片**
+
+**回答長度要求：**
+- 保持回答簡潔，總長度控制在 150 字以內
+- 每個食譜的描述不超過 2 句話
+- 避免冗長的說明，重點突出關鍵資訊
 
 **拒絕無關問題的範本：**
 "抱歉，我是專門協助食譜推薦的助手，無法回答與烹飪無關的問題。請問您需要什麼樣的食譜推薦呢？例如：根據食材推薦、根據偏好篩選等。"`
@@ -210,8 +215,8 @@ async function findMatchingRecipes(criteria: RecommendationCriteria): Promise<Re
     return scoreB - scoreA
   })
 
-  // 返回前 5-10 個最相關的
-  return recipes.slice(0, 10)
+  // 返回前 5 個最相關的
+  return recipes.slice(0, 5)
 }
 
 // 主對話函數
@@ -288,7 +293,8 @@ ${recipesContext}
 2. 如果列表中的食譜數量少於用戶期望，請誠實告知，不要編造更多食譜
 3. 在回答中，請使用上述食譜的實際資訊（標題、難度、時間、評分等）
 4. **不要提到「連結提示」或「查看食譜」等文字**，因為系統會自動在回答下方顯示可點擊的食譜卡片
-5. 用友善且實用的方式介紹這些食譜的優點和特色`
+5. **回答必須簡潔**：總長度控制在 150 字以內，每個食譜描述不超過 2 句話
+6. 用友善且實用的方式簡要介紹這些食譜的優點和特色，避免冗長說明`
     : `**重要：資料庫中沒有找到符合條件的食譜。**
 
 請禮貌地告知用戶：
@@ -459,5 +465,39 @@ export async function getConversationMessages(conversationId: string) {
   )
 
   return messagesWithRecipes
+}
+
+// 刪除對話（包含所有訊息）
+export async function deleteConversation(conversationId: string): Promise<boolean> {
+  const supabase = await createServerSupabaseClient()
+  
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  // 驗證對話屬於當前用戶
+  const { data: conversation } = await supabase
+    .from('chatbot_conversations')
+    .select('user_id')
+    .eq('id', conversationId)
+    .single()
+
+  if (!conversation || conversation.user_id !== user.id) {
+    throw new Error('Conversation not found or access denied')
+  }
+
+  // 刪除對話（由於 CASCADE，會自動刪除所有相關訊息）
+  const { error } = await supabase
+    .from('chatbot_conversations')
+    .delete()
+    .eq('id', conversationId)
+
+  if (error) {
+    console.error('Error deleting conversation:', error)
+    return false
+  }
+
+  return true
 }
 

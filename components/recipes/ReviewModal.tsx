@@ -97,11 +97,11 @@ export function ReviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black bg-opacity-50 p-4"
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-gray-800"
+        className="relative my-4 w-full max-w-2xl rounded-lg bg-white shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
