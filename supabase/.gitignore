@@ -6,9 +6,18 @@ verify-follows-trigger.sql
 diagnose-trigger-issue.sql
 get-user-ids.sql
 preview-migration-data.sql
+check-categories.sql
+check-comments-is-deleted.sql
 
 # 已被取代的舊版本腳本
 add-tags-column.sql
 fix-add-tags-column.sql
 fix-follows-trigger.sql
+migration-add-tags-column.sql
+
+# 測試和調試相關
+fix-realtime-replica-identity.sql
+recreate-follows-trigger.sql
+update-follow-stats.sql
+enable-realtime-profiles.sql
 

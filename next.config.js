@@ -17,6 +17,18 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@supabase/supabase-js'],
   },
+  // 排除不需要在構建追蹤中的目錄，避免堆疊溢出錯誤
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@swc/core-linux-x64-gnu/**',
+      'node_modules/@swc/core-linux-x64-musl/**',
+      'node_modules/@esbuild/linux-x64/**',
+      'scripts/**',
+      'supabase/**',
+      'test image/**',
+      'docs/**',
+    ],
+  },
   webpack: (config, { isServer, dev }) => {
     // html2pdf.js 是純客戶端庫，不應該在服務器端打包
     if (isServer) {
