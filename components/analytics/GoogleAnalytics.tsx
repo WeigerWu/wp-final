@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import Script from 'next/script'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { setUserId, clearUserId, initGA4 } from '@/lib/analytics/ga4'
+import { setUserId, clearUserId } from '@/lib/analytics/ga4'
 
 /**
  * Google Analytics 4 元件
@@ -19,15 +19,17 @@ export function GoogleAnalytics() {
       return
     }
 
-    // 初始化 GA4
-    initGA4(measurementId)
+    // 設定或清除使用者 ID（GA4 腳本載入後會自動初始化）
+    // 使用 setTimeout 確保腳本已載入
+    const timer = setTimeout(() => {
+      if (user) {
+        setUserId(user.id)
+      } else {
+        clearUserId()
+      }
+    }, 100)
 
-    // 設定或清除使用者 ID
-    if (user) {
-      setUserId(user.id)
-    } else {
-      clearUserId()
-    }
+    return () => clearTimeout(timer)
   }, [user, measurementId])
 
   if (!measurementId) {
