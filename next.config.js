@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // 使用 standalone 輸出模式可以避免構建追蹤階段的堆疊溢出問題
+  output: 'standalone',
   images: {
     domains: ['res.cloudinary.com', 'images.unsplash.com', 'img.spoonacular.com'],
     remotePatterns: [
