@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation'
 import { checkAdminAccess, getUserEvents, getEventStats, getActiveUsers } from '@/lib/actions/admin'
 import { AdminEventsClient } from '@/components/admin/AdminEventsClient'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: '使用者行為追蹤 - 後台管理',
   description: '查看使用者行為數據和活動記錄',

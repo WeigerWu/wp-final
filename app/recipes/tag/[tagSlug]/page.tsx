@@ -6,6 +6,9 @@ import { ArrowLeft } from 'lucide-react'
 import { decodeTagSlug } from '@/lib/utils/tags'
 import { Tag } from '@/types/tag'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface TagPageProps {
   params: {
     tagSlug: string

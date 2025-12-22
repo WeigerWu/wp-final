@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation'
 import { ProfileContent } from '@/components/profile/ProfileContent'
 import { getRecipes, getRecipeCount } from '@/lib/actions/recipes-server'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface ProfilePageProps {
   params: {
     userId: string

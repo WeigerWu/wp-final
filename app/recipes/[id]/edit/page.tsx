@@ -3,6 +3,9 @@ import { getRecipe } from '@/lib/actions/recipes-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface EditRecipePageProps {
   params: {
     id: string

@@ -5,6 +5,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Users } from 'lucide-react'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface FollowersPageProps {
   params: {
     userId: string

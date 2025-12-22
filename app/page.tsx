@@ -4,6 +4,9 @@ import { getRecipes } from '@/lib/actions/recipes-server'
 import { getUserIdByUsername } from '@/lib/actions/users'
 import { Button } from '@/components/ui/Button'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface RecipeSection {
   title: string
   recipes: Awaited<ReturnType<typeof getRecipes>>

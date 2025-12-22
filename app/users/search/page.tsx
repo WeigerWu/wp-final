@@ -2,6 +2,9 @@ import { searchUsers } from '@/lib/actions/users'
 import { UserCard } from '@/components/users/UserCard'
 import { Search } from 'lucide-react'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface SearchUsersPageProps {
   searchParams: {
     search?: string

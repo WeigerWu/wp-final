@@ -3,6 +3,9 @@ import { FilterBar } from '@/components/recipes/FilterBar'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { getRecipes } from '@/lib/actions/recipes-server'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface SearchPageProps {
   searchParams: {
     search?: string

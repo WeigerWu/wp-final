@@ -2,6 +2,9 @@ import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { getRecipesByCategorySlug } from '@/lib/actions/categories'
 import { notFound } from 'next/navigation'
 
+// 強制動態渲染（因為使用了 cookies）
+export const dynamic = 'force-dynamic'
+
 interface CategoryPageProps {
   params: {
     categorySlug: string
