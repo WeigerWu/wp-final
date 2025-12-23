@@ -43,8 +43,8 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
   
   const cardContent = (
       <div className={cn(
-        "overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800",
-        !isPreview && "transition-shadow hover:shadow-md"
+        "overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800",
+        !isPreview && "transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
       )}>
         {/* Recipe Image */}
         <div className="relative aspect-square w-full overflow-hidden bg-gray-200 dark:bg-gray-700">
@@ -53,7 +53,7 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
               src={recipe.image_url}
               alt={recipe.title}
               fill
-              className="object-cover"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
@@ -64,7 +64,7 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
           {recipe.difficulty && (
             <div
               className={cn(
-                'absolute right-2 top-2 rounded-full px-2 py-1 text-xs font-semibold',
+                'absolute right-2 top-2 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm shadow-sm',
                 difficultyColors[recipe.difficulty]
               )}
             >
@@ -156,7 +156,7 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
             <Link 
               href={`/profile/${recipe.user_id}`}
               onClick={(e) => e.stopPropagation()}
-              className="mt-3 flex items-center space-x-2 border-t border-gray-200 pt-3 hover:opacity-80 transition-opacity dark:border-gray-700"
+              className="mt-3 flex items-center space-x-2 border-t border-gray-200 pt-3 transition-all hover:opacity-80 hover:translate-x-1 dark:border-gray-700"
             >
               {recipe.user.avatar_url ? (
                 <div className="relative h-6 w-6 overflow-hidden rounded-full">
@@ -190,7 +190,7 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
     <div
       onClick={handleCardClick}
       className={cn(
-        'block cursor-pointer',
+        'group block cursor-pointer',
         className
       )}
       role="link"

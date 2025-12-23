@@ -14,7 +14,7 @@ import Link from 'next/link'
 import { CookingMode } from './CookingMode'
 import { TagLink } from './TagLink'
 import { CategoryLink } from './CategoryLink'
-import { exportRecipeToTextFile, exportRecipeToJSONFile, exportRecipeToPDF } from '@/lib/utils/recipe-export'
+import { exportRecipeToTextFile, exportRecipeToPDF } from '@/lib/utils/recipe-export'
 import { trackEventClient } from '@/lib/analytics/tracking'
 import { trackEvent } from '@/lib/analytics/ga4'
 
@@ -106,19 +106,6 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
     trackEvent('export_recipe', {
       recipe_id: recipe.id,
       export_format: 'text',
-    })
-    setShowExportMenu(false)
-  }
-
-  const handleExportJSON = () => {
-    exportRecipeToJSONFile(recipe)
-    trackEventClient('export_recipe', {
-      recipe_id: recipe.id,
-      export_format: 'json',
-    })
-    trackEvent('export_recipe', {
-      recipe_id: recipe.id,
-      export_format: 'json',
     })
     setShowExportMenu(false)
   }
@@ -267,13 +254,18 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
           <button
             onClick={handleFavorite}
             disabled={!currentUser}
-            className="disabled:opacity-50"
+            className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              isFavorited
+                ? 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30'
+                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+            }`}
           >
             <Heart
-              className={`h-5 w-5 ${
+              className={`h-4 w-4 transition-colors ${
                 isFavorited ? 'fill-red-500 text-red-500' : 'text-gray-400 dark:text-gray-500'
               }`}
             />
+            <span>收藏</span>
           </button>
           {/* Cooking Mode */}
           <Button onClick={handleStartCookingMode}>
@@ -309,13 +301,6 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
                   >
                     <FileText className="h-4 w-4 dark:text-gray-400" />
                     <span>匯出為文字檔 (.txt)</span>
-                  </button>
-                  <button
-                    onClick={handleExportJSON}
-                    className="flex w-full items-center space-x-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <FileText className="h-4 w-4 dark:text-gray-400" />
-                    <span>匯出為 JSON (.json)</span>
                   </button>
                 </div>
               </>

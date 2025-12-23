@@ -323,7 +323,7 @@ export function FilterBar() {
   const hasActiveFilters = selectedTags.length > 0 || selectedDifficulties.length > 0 || selectedCategories.length > 0
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-shadow hover:shadow-md">
       {/* Header */}
       <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <button
@@ -426,10 +426,10 @@ export function FilterBar() {
                     return (
                       <label
                         key={category.id}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer transition-all duration-200 ${
                           isSelected
-                            ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
-                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                            ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 shadow-sm'
+                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
                         }`}
                       >
                         <input
@@ -464,10 +464,10 @@ export function FilterBar() {
                     return (
                       <label
                         key={difficulty.value}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer transition-colors ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer transition-all duration-200 ${
                           isSelected
-                            ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700'
-                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                            ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 shadow-sm'
+                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
                         }`}
                       >
                         <input
@@ -520,10 +520,10 @@ export function FilterBar() {
                         return (
                           <label
                             key={tag.name}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer transition-colors flex-shrink-0 ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer transition-all duration-200 flex-shrink-0 ${
                               isSelected
-                                ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
-                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300 shadow-sm'
+                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm'
                             }`}
                           >
                             <input
