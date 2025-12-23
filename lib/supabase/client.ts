@@ -55,7 +55,10 @@ export const createSupabaseClient = () => {
   }
 
   // 服務器端不應該使用這個函數，但為了向後兼容保留
-  console.warn('createSupabaseClient called on server side, use createServerSupabaseClient instead')
+  // 只在開發環境輸出警告
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('createSupabaseClient called on server side, use createServerSupabaseClient instead')
+  }
   return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 }
 
