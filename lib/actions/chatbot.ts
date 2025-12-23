@@ -40,17 +40,47 @@ const SYSTEM_PROMPT = `你是一個專業的食譜推薦助手，專門幫助用
 - 避免冗長的說明，重點突出關鍵資訊
 
 **拒絕無關問題的範本：**
-"抱歉，我是專門協助食譜推薦的助手，無法回答與烹飪無關的問題。請問您需要什麼樣的食譜推薦呢？例如：根據食材推薦、根據偏好篩選等。"`
+"抱歉，我是專門協助食譜推薦的助手，無法回答與烹飪無關的問題。請問您需要什麼樣的食譜推薦呢？例如：根據食材推薦、根據偏好篩選、根據難易度推薦等。"`
 
 // 檢查問題是否與食譜相關
 async function isRecipeRelated(question: string): Promise<boolean> {
   try {
+    // 先檢查常見的食譜相關關鍵詞（快速通過）
+    const recipeKeywords = [
+      '簡單', '中等', '困難', '容易', '難',
+      'easy', 'medium', 'hard',
+      '素食', '無麩質', '低卡', '低脂', '高蛋白',
+      'vegetarian', 'vegan', 'gluten-free',
+      '雞蛋', '番茄', '洋蔥', '肉', '魚', '蔬菜', '水果',
+      '分鐘', '小時', '時間',
+      '份量', '人份', 'servings',
+      '食譜', '料理', '烹飪', '做菜', 'recipe', 'cooking', 'dish'
+    ]
+    
+    const questionLower = question.toLowerCase()
+    const hasKeyword = recipeKeywords.some(keyword => 
+      questionLower.includes(keyword.toLowerCase())
+    )
+    
+    // 如果包含關鍵詞，直接返回 true（避免不必要的 AI 調用）
+    if (hasKeyword) {
+      return true
+    }
+    
+    // 如果沒有明顯關鍵詞，使用 AI 判斷
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: `判斷用戶問題是否與食譜、烹飪、食材、料理相關。只回答 "YES" 或 "NO"。`
+          content: `判斷用戶問題是否與食譜、烹飪、食材、料理相關。以下情況應該回答 "YES"：
+- 關於食譜難度（簡單、中等、困難等）
+- 關於食材名稱
+- 關於飲食偏好（素食、無麩質等）
+- 關於烹飪時間、份量
+- 關於料理方式、烹飪技巧
+
+只回答 "YES" 或 "NO"。`
         },
         {
           role: 'user',
@@ -236,7 +266,7 @@ export async function chatWithRecipeAssistant(
   const isRelated = await isRecipeRelated(userMessage)
   
   if (!isRelated) {
-    const rejectionResponse = '抱歉，我是專門協助食譜推薦的助手，無法回答與烹飪無關的問題。請問您需要什麼樣的食譜推薦呢？例如：\n- 根據食材推薦（如：我有雞蛋和番茄，推薦什麼食譜？）\n- 根據偏好篩選（如：推薦簡單的素食食譜）\n- 根據時間限制（如：30分鐘內可以完成的食譜）'
+    const rejectionResponse = '抱歉，我是專門協助食譜推薦的助手，無法回答與烹飪無關的問題。請問您需要什麼樣的食譜推薦呢？例如：\n- 根據食材推薦（如：我有雞蛋和番茄，推薦什麼食譜？）\n- 根據偏好篩選（如：推薦簡單的素食食譜）\n- 根據難易度推薦（如：推薦簡單的食譜）'
     
     // 儲存對話（即使被拒絕）
     if (conversationId) {
@@ -337,6 +367,148 @@ ${recipesContext}
   } catch (error) {
     console.error('Error generating AI response:', error)
     throw new Error('無法生成回答，請稍後再試')
+  }
+}
+
+// 獲取快速回覆的推薦食譜
+async function getQuickActionRecipes(userMessage: string): Promise<Recipe[]> {
+  if (userMessage === '根據難易度推薦食譜') {
+    // 推薦簡單、中等、困難各一個
+    const recipes: Recipe[] = []
+    
+    // 獲取簡單難度的食譜
+    const easyRecipes = await getRecipes({ difficulty: 'easy', limit: 10 })
+    if (easyRecipes.length > 0) {
+      // 按評分和收藏數排序，選擇最好的
+      easyRecipes.sort((a, b) => {
+        const scoreA = (a.average_rating || 0) * 0.7 + (a.favorite_count || 0) * 0.3
+        const scoreB = (b.average_rating || 0) * 0.7 + (b.favorite_count || 0) * 0.3
+        return scoreB - scoreA
+      })
+      recipes.push(easyRecipes[0])
+    }
+    
+    // 獲取中等難度的食譜
+    const mediumRecipes = await getRecipes({ difficulty: 'medium', limit: 10 })
+    if (mediumRecipes.length > 0) {
+      mediumRecipes.sort((a, b) => {
+        const scoreA = (a.average_rating || 0) * 0.7 + (a.favorite_count || 0) * 0.3
+        const scoreB = (b.average_rating || 0) * 0.7 + (b.favorite_count || 0) * 0.3
+        return scoreB - scoreA
+      })
+      recipes.push(mediumRecipes[0])
+    }
+    
+    // 獲取困難難度的食譜
+    const hardRecipes = await getRecipes({ difficulty: 'hard', limit: 10 })
+    if (hardRecipes.length > 0) {
+      hardRecipes.sort((a, b) => {
+        const scoreA = (a.average_rating || 0) * 0.7 + (a.favorite_count || 0) * 0.3
+        const scoreB = (b.average_rating || 0) * 0.7 + (b.favorite_count || 0) * 0.3
+        return scoreB - scoreA
+      })
+      recipes.push(hardRecipes[0])
+    }
+    
+    return recipes
+  } else if (userMessage === '根據食材推薦食譜') {
+    // 推薦三個不同食材的食譜（使用常見食材）
+    const commonIngredients = ['雞蛋', '番茄', '洋蔥', '雞肉', '米飯', '麵條']
+    const recipes: Recipe[] = []
+    
+    for (const ingredient of commonIngredients) {
+      if (recipes.length >= 3) break
+      
+      const ingredientRecipes = await getRecipes({ 
+        ingredientKeywords: [ingredient], 
+        limit: 10 
+      })
+      
+      if (ingredientRecipes.length > 0) {
+        // 按評分和收藏數排序，選擇最好的
+        ingredientRecipes.sort((a, b) => {
+          const scoreA = (a.average_rating || 0) * 0.7 + (a.favorite_count || 0) * 0.3
+          const scoreB = (b.average_rating || 0) * 0.7 + (b.favorite_count || 0) * 0.3
+          return scoreB - scoreA
+        })
+        
+        // 避免重複食譜
+        const recipe = ingredientRecipes.find(r => !recipes.some(existing => existing.id === r.id))
+        if (recipe) {
+          recipes.push(recipe)
+        }
+      }
+    }
+    
+    return recipes
+  } else if (userMessage === '根據飲食偏好篩選') {
+    // 推薦三個不同偏好的食譜（素食、無麩質、低卡）
+    const preferences = ['素食', '無麩質', '低卡']
+    const recipes: Recipe[] = []
+    
+    for (const preference of preferences) {
+      if (recipes.length >= 3) break
+      
+      // 使用標籤來查找偏好相關的食譜
+      const preferenceRecipes = await getRecipes({ 
+        tags: [preference], 
+        limit: 10 
+      })
+      
+      if (preferenceRecipes.length > 0) {
+        // 按評分和收藏數排序，選擇最好的
+        preferenceRecipes.sort((a, b) => {
+          const scoreA = (a.average_rating || 0) * 0.7 + (a.favorite_count || 0) * 0.3
+          const scoreB = (b.average_rating || 0) * 0.7 + (b.favorite_count || 0) * 0.3
+          return scoreB - scoreA
+        })
+        
+        // 避免重複食譜
+        const recipe = preferenceRecipes.find(r => !recipes.some(existing => existing.id === r.id))
+        if (recipe) {
+          recipes.push(recipe)
+        }
+      }
+    }
+    
+    return recipes
+  }
+  
+  return []
+}
+
+// 保存快速回覆訊息（用戶訊息和固定回應）
+export async function saveQuickActionMessage(
+  userMessage: string,
+  assistantMessage: string,
+  conversationId?: string
+): Promise<{ newConversationId?: string; recipes?: Recipe[] }> {
+  const supabase = await createServerSupabaseClient()
+  
+  // 檢查用戶認證
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    throw new Error('User not authenticated')
+  }
+
+  let finalConversationId = conversationId
+  
+  // 如果是新對話，先創建對話
+  if (!finalConversationId) {
+    finalConversationId = await createConversation(user.id, userMessage)
+  }
+
+  // 獲取推薦食譜
+  const recommendedRecipes = await getQuickActionRecipes(userMessage)
+
+  // 保存用戶訊息和固定回應（包含推薦食譜的 ID）
+  const recipeIds = recommendedRecipes.map(r => r.id)
+  await saveMessage(finalConversationId, 'user', userMessage)
+  await saveMessage(finalConversationId, 'assistant', assistantMessage, recipeIds.length > 0 ? recipeIds : undefined)
+
+  return {
+    newConversationId: conversationId ? undefined : finalConversationId,
+    recipes: recommendedRecipes.length > 0 ? recommendedRecipes : undefined
   }
 }
 

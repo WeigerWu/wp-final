@@ -6,6 +6,9 @@ import { ArrowLeft } from 'lucide-react'
 import { decodeTagSlug } from '@/lib/utils/tags'
 import { Tag } from '@/types/tag'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface TagPageProps {
   params: {
     tagSlug: string

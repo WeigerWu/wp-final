@@ -2,6 +2,9 @@ import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { getRecipesByCategorySlug } from '@/lib/actions/categories'
 import { notFound } from 'next/navigation'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface CategoryPageProps {
   params: {
     categorySlug: string

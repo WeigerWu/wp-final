@@ -4,6 +4,9 @@ import { getRecipes } from '@/lib/actions/recipes-server'
 import { getUserIdByUsername } from '@/lib/actions/users'
 import { Button } from '@/components/ui/Button'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface RecipeSection {
   title: string
   recipes: Awaited<ReturnType<typeof getRecipes>>
