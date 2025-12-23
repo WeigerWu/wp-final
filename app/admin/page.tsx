@@ -1,6 +1,9 @@
 import { Suspense } from 'react'
 import { AdminDashboard } from '@/components/admin/AdminDashboard'
 
+// 強制動態渲染，禁用靜態生成
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: '數據分析後台 - I\'m cooked',
   description: '網站數據統計與分析',
