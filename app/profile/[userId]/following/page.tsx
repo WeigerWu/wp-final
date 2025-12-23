@@ -5,6 +5,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowLeft, Users } from 'lucide-react'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface FollowingPageProps {
   params: {
     userId: string

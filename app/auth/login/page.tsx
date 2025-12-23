@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
@@ -13,8 +13,13 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isEmailNotConfirmed, setIsEmailNotConfirmed] = useState(false)
   const [isResendingEmail, setIsResendingEmail] = useState(false)
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createSupabaseClient()
+  
+  // 獲取 redirect 參數
+  const redirectTo = searchParams.get('redirect') || '/'
 
   const handleResendConfirmation = async () => {
     setIsResendingEmail(true)
@@ -45,6 +50,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess(false)
     setIsEmailNotConfirmed(false)
     setIsLoading(true)
 
@@ -76,8 +82,13 @@ export default function LoginPage() {
       // 登入成功
       if (data.session) {
         console.log('✅ 登入成功')
-        router.push('/')
-        router.refresh()
+        setSuccess(true)
+        // 顯示成功訊息後再跳轉
+        setTimeout(() => {
+          // 如果有 redirect 參數，跳轉到指定頁面，否則跳轉到首頁
+          router.push(redirectTo)
+          router.refresh()
+        }, 1000) // 1秒後跳轉
       }
     } catch (error: any) {
       console.error('Login error:', error)
@@ -105,6 +116,11 @@ export default function LoginPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <h1 className="mb-6 text-2xl font-bold dark:text-gray-100">登入</h1>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {success && (
+              <div className="rounded-md p-3 text-sm bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400">
+                登入成功！正在跳轉...
+              </div>
+            )}
             {error && (
               <div className={`rounded-md p-3 text-sm ${
                 isEmailNotConfirmed 

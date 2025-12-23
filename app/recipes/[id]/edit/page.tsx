@@ -3,6 +3,9 @@ import { getRecipe } from '@/lib/actions/recipes-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface EditRecipePageProps {
   params: {
     id: string

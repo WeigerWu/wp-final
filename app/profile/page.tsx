@@ -3,6 +3,9 @@ import { redirect } from 'next/navigation'
 import { ProfileContent } from '@/components/profile/ProfileContent'
 import { getRecipes, getRecipeCount } from '@/lib/actions/recipes-server'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 export default async function ProfilePage() {
   const supabase = await createServerSupabaseClient()
   

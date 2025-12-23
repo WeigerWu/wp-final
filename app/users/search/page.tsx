@@ -2,6 +2,9 @@ import { searchUsers } from '@/lib/actions/users'
 import { UserCard } from '@/components/users/UserCard'
 import { Search } from 'lucide-react'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface SearchUsersPageProps {
   searchParams: {
     search?: string

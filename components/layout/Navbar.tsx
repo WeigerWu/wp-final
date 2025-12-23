@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { createSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/AuthProvider'
 import { Button } from '@/components/ui/Button'
 import { Menu, X, Search, User, LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -16,25 +17,32 @@ export function Navbar() {
   const searchFormRef = useRef<HTMLFormElement>(null)
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createSupabaseClient()
-  const [user, setUser] = useState<any>(null)
+  const { user: authUser, loading: authLoading } = useAuth()
   const [profile, setProfile] = useState<{ username: string | null; avatar_url: string | null; display_name: string | null } | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  // 当用户状态变化时，加载 profile
+  useEffect(() => {
+    if (authLoading) return // 等待认证检查完成
     
     const loadProfile = async (userId: string) => {
       try {
-        const { data: profileData, error } = await supabase
+        // 每次挂载时都创建新的客户端实例，避免缓存问题
+        const supabaseClient = createSupabaseClient()
+        
+        // 使用 .maybeSingle() 并添加缓存控制
+        const { data: profileData, error } = await supabaseClient
           .from('profiles')
           .select('username, avatar_url, display_name')
           .eq('id', userId)
-          .single()
+          .maybeSingle()
         
         if (error) {
           console.error('Error fetching profile in Navbar:', error)
-          // 如果 profile 不存在，設置為 null，避免無限循環
           setProfile({ username: null, avatar_url: null, display_name: null })
           return
         }
@@ -51,28 +59,12 @@ export function Navbar() {
       }
     }
 
-    supabase.auth.getUser().then(({ data }) => {
-      console.log('Auth user in Navbar:', data.user)
-      setUser(data.user)
-      if (data.user) {
-        loadProfile(data.user.id)
-      }
-    })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('Auth state changed in Navbar:', session?.user?.id)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        await loadProfile(session.user.id)
-      } else {
-        setProfile(null)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+    if (authUser) {
+      loadProfile(authUser.id)
+    } else {
+      setProfile(null)
+    }
+  }, [authUser, authLoading])
 
   // 處理點擊外部關閉搜尋框
   useEffect(() => {
@@ -93,9 +85,11 @@ export function Navbar() {
   }, [showSearch])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
+    const supabaseClient = createSupabaseClient()
+    await supabaseClient.auth.signOut()
+    setProfile(null)
+    // 登出後強制跳轉到首頁
+    window.location.href = '/'
   }
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -123,13 +117,15 @@ export function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center space-x-2 text-xl font-bold text-primary-600 dark:text-primary-400">
-            <Image
-              src="/imcook_icon.png"
-              alt="I'm cooked logo"
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-full object-cover"
-            />
+            <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0">
+              <Image
+                src="/imcook_icon.png"
+                alt="I'm cooked logo"
+                width={32}
+                height={32}
+                className="h-full w-full object-cover"
+              />
+            </div>
             <span>I'm cooked</span>
           </Link>
 
@@ -201,7 +197,7 @@ export function Navbar() {
                   註冊
                 </Link>
               </>
-            ) : user ? (
+            ) : authUser ? (
               <>
                 <div className="flex items-center space-x-2">
                   {profile?.avatar_url ? (
@@ -222,7 +218,7 @@ export function Navbar() {
                   </span>
                 </div>
                 <Link
-                  href={user ? `/profile/${user.id}` : '/profile'}
+                  href={authUser ? `/profile/${authUser.id}` : '/profile'}
                   className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 transition-colors"
                 >
                   <User className="h-5 w-5" />
@@ -331,28 +327,28 @@ export function Navbar() {
                     註冊
                   </Link>
                 </>
-              ) : user ? (
-                <>
-                  <div className="flex items-center space-x-2">
-                    {profile?.avatar_url ? (
-                      <Image
-                        src={profile.avatar_url}
-                        alt={profile.display_name || profile.username || 'User'}
-                        width={32}
-                        height={32}
-                        className="h-8 w-8 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
-                      />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700">
-                        <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                      </div>
-                    )}
-                    <span className="font-medium text-gray-700 dark:text-gray-300">
-                      {profile?.display_name || profile?.username || '用戶'}
-                    </span>
-                  </div>
-                  <Link
-                    href={user ? `/profile/${user.id}` : '/profile'}
+            ) : authUser ? (
+              <>
+                <div className="flex items-center space-x-2">
+                  {profile?.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
+                      alt={profile.display_name || profile.username || 'User'}
+                      width={32}
+                      height={32}
+                      className="h-8 w-8 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700">
+                      <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    </div>
+                  )}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    {profile?.display_name || profile?.username || '用戶'}
+                  </span>
+                </div>
+                <Link
+                  href={authUser ? `/profile/${authUser.id}` : '/profile'}
                     className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 transition-colors"
                     onClick={() => setIsOpen(false)}
                   >

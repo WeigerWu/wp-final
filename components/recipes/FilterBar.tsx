@@ -46,6 +46,7 @@ export function FilterBar() {
       // #endregion
       console.log('[FilterBar] Starting to fetch filter data...')
       try {
+        // 每次挂载时都创建新的客户端实例，避免缓存问题
         const supabase = createSupabaseClient()
         // #region agent log
         const { data: sessionData } = await supabase.auth.getSession();

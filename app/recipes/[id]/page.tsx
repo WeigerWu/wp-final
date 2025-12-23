@@ -4,6 +4,9 @@ import { RecipeDetail } from '@/components/recipes/RecipeDetail'
 import { CommentsSection } from '@/components/recipes/CommentsSection'
 import { getComments } from '@/lib/actions/comments'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface RecipePageProps {
   params: {
     id: string

@@ -3,6 +3,9 @@ import { FilterBar } from '@/components/recipes/FilterBar'
 import { RecipeCard } from '@/components/recipes/RecipeCard'
 import { getRecipes } from '@/lib/actions/recipes-server'
 
+// 强制动态渲染，禁用缓存
+export const dynamic = 'force-dynamic'
+
 interface SearchPageProps {
   searchParams: {
     search?: string

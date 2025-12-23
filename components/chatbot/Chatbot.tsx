@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import { Recipe } from '@/types/recipe'
-import { chatWithRecipeAssistant, getConversationMessages, deleteConversation } from '@/lib/actions/chatbot'
+import { chatWithRecipeAssistant, getConversationMessages, deleteConversation, saveQuickActionMessage } from '@/lib/actions/chatbot'
 import Link from 'next/link'
 
 interface Message {
@@ -15,19 +15,38 @@ interface Message {
   recipes?: Recipe[]
 }
 
+// 快速回覆按鈕對應的固定回應
+const QUICK_ACTION_RESPONSES: Record<string, string> = {
+  '根據食材推薦食譜': '好的！請告訴我您有哪些食材，我會為您推薦適合的食譜。您可以列出食材名稱，例如：雞蛋、番茄、洋蔥等。',
+  '根據飲食偏好篩選': '好的！請告訴我您的飲食偏好，例如：素食、無麩質、低卡、低脂等，我會為您篩選符合條件的食譜。',
+  '根據難易度推薦食譜': '好的！請告訴我您希望的難易度：簡單、中等、或困難？我會為您推薦相應難度的食譜。',
+}
+
 export function Chatbot() {
   const { user, loading: authLoading } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難度和時間推薦\n\n請問你需要什麼幫助呢？'
+      content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難易度推薦\n\n請問你需要什麼幫助呢？'
     }
   ])
   const [isLoading, setIsLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | undefined>(undefined)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [typingMessage, setTypingMessage] = useState<{ content: string; recipes?: Recipe[] } | null>(null)
+
+  // 自動滾動到底部
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // 當訊息更新時自動滾動到底部
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, typingMessage, isLoading])
 
   // 載入對話歷史（如果有的話）
   useEffect(() => {
@@ -81,7 +100,7 @@ export function Chatbot() {
       setMessages([
         {
           role: 'assistant',
-          content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難度和時間推薦\n\n請問你需要什麼幫助呢？'
+          content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難易度推薦\n\n請問你需要什麼幫助呢？'
         }
       ])
     } catch (error) {
@@ -100,19 +119,42 @@ export function Chatbot() {
     // 添加用戶訊息
     const userMessage: Message = { role: 'user', content: message }
     setMessages(prev => [...prev, userMessage])
+
+    // 檢查是否為快速回覆按鈕的消息
+    const quickResponse = QUICK_ACTION_RESPONSES[message]
+    if (quickResponse) {
+      // 如果是快速回覆按鈕，顯示加載動畫
+      setIsLoading(true)
+      
+      // 保存到資料庫並獲取推薦食譜
+      try {
+        const result = await saveQuickActionMessage(message, quickResponse, conversationId)
+        if (result.newConversationId) {
+          setConversationId(result.newConversationId)
+        }
+        
+        // 使用打字動畫顯示固定回應和推薦食譜
+        await typeMessage(quickResponse, result.recipes)
+      } catch (error) {
+        console.error('Error saving quick action message:', error)
+        // 即使保存失敗也顯示固定回應
+        await typeMessage(quickResponse)
+      } finally {
+        setIsLoading(false)
+      }
+      
+      return // 只顯示固定回應，不繼續執行 AI 處理
+    }
+
+    // 如果不是快速回覆按鈕，則正常調用 AI
     setIsLoading(true)
 
     try {
       // 呼叫 AI
       const result = await chatWithRecipeAssistant(message, conversationId)
 
-      // 添加 AI 回應
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: result.response,
-        recipes: result.recipes
-      }
-      setMessages(prev => [...prev, assistantMessage])
+      // 使用打字動畫顯示 AI 回應
+      await typeMessage(result.response, result.recipes)
 
       // 如果是新對話，更新 conversationId
       if (result.newConversationId) {
@@ -120,13 +162,35 @@ export function Chatbot() {
       }
     } catch (error) {
       console.error('Chat error:', error)
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: '抱歉，發生了一些錯誤。請稍後再試。'
-      }])
+      await typeMessage('抱歉，發生了一些錯誤。請稍後再試。')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // 打字動畫函數
+  const typeMessage = async (content: string, recipes?: Recipe[]) => {
+    setTypingMessage({ content: '', recipes: undefined })
+    const fullContent = content
+    const chars = fullContent.split('')
+    let currentContent = ''
+    
+    // 快速打字動畫（每個字符間隔很短）
+    for (let i = 0; i < chars.length; i++) {
+      currentContent += chars[i]
+      setTypingMessage({ content: currentContent, recipes: undefined })
+      // 使用很短的延遲以實現快速打字效果
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    
+    // 動畫完成後，將訊息添加到訊息列表（包含recipes）
+    const finalMessage: Message = {
+      role: 'assistant',
+      content: fullContent,
+      recipes
+    }
+    setMessages(prev => [...prev, finalMessage])
+    setTypingMessage(null)
   }
 
   const handleClose = () => {
@@ -255,6 +319,15 @@ export function Chatbot() {
             <ChatMessage message={message} />
           </div>
         ))}
+        {typingMessage && (
+          <ChatMessage 
+            message={{
+              role: 'assistant',
+              content: typingMessage.content,
+              recipes: typingMessage.recipes
+            }} 
+          />
+        )}
         {isLoading && (
           <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
             <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary-500" style={{ animationDelay: '0ms' }}></div>
@@ -262,14 +335,14 @@ export function Chatbot() {
             <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary-500" style={{ animationDelay: '300ms' }}></div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Actions - 永遠顯示初始選項 */}
+      {/* Quick Actions */}
       {!isLoading && !isDeleting && (
         <QuickActions 
           onSelect={handleSend}
           onDelete={handleDeleteConversation}
-          context="initial"
           showDelete={conversationId !== undefined && messages.length > 1}
         />
       )}
