@@ -11,6 +11,11 @@
 - 🔍 **搜尋與標籤** - 透過搜尋與標籤探索不同菜式
 - 🤖 **AI 推薦** - 智慧推薦系統（基礎版本）
 
+## 線上體驗
+
+- 前台平台網址：[https://im-cooked.vercel.app/](https://im-cooked.vercel.app/)
+- 後台使用者行為追蹤頁面：[https://im-cooked.vercel.app/admin](https://im-cooked.vercel.app/admin)
+
 ## 技術架構
 
 - **前端框架**: Next.js 14 (App Router)
