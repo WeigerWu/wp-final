@@ -88,8 +88,8 @@ export function Navbar() {
     const supabaseClient = createSupabaseClient()
     await supabaseClient.auth.signOut()
     setProfile(null)
-    router.push('/')
-    router.refresh()
+    // 登出後強制跳轉到首頁
+    window.location.href = '/'
   }
 
   const handleSearchSubmit = (e: React.FormEvent) => {
