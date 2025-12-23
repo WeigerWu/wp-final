@@ -40,19 +40,22 @@ export function FilterBar() {
 
   useEffect(() => {
     const fetchFilterData = async () => {
+      console.log('[FilterBar] Starting to fetch filter data...')
       try {
         const supabase = createSupabaseClient()
-        
+
         // 並行獲取所有資料
         const [categoriesResult, difficultiesResult, tagsResult] = await Promise.all([
           // 獲取有食譜的分類
           (async () => {
+            console.log('[FilterBar] Fetching categories...')
             const { data: recipes, error: recipesError } = await supabase
               .from('recipes')
               .select('category_id')
               .eq('status', 'published')
               .eq('is_public', true)
               .not('category_id', 'is', null)
+            console.log('[FilterBar] Categories recipes fetched:', recipes?.length || 0)
             
             if (recipesError || !recipes) {
               return []
@@ -77,26 +80,33 @@ export function FilterBar() {
               .from('categories')
               .select('id, name, slug')
               .in('id', categoryIds)
-            
+
+            console.log('[FilterBar] Categories data fetched:', categoriesData?.length || 0)
+
             if (categoriesError || !categoriesData) {
               return []
             }
-            
+
             // 合併分類資訊和數量，並按數量排序
-            return categoriesData.map((category: any) => ({
+            const result = categoriesData.map((category: any) => ({
               ...category,
               recipe_count: categoryCounts.get(category.id) || 0,
             })).sort((a: any, b: any) => b.recipe_count - a.recipe_count)
+
+            console.log('[FilterBar] Categories result:', result.length)
+            return result
           })(),
-          
+
           // 獲取實際存在的難度
           (async () => {
+            console.log('[FilterBar] Fetching difficulties...')
             const { data: recipes, error } = await supabase
               .from('recipes')
               .select('difficulty')
               .eq('status', 'published')
               .eq('is_public', true)
               .not('difficulty', 'is', null)
+            console.log('[FilterBar] Difficulties recipes fetched:', recipes?.length || 0)
             
             if (error || !recipes) {
               return []
@@ -117,63 +127,87 @@ export function FilterBar() {
               medium: '中等',
               hard: '困難',
             }
-            
-            // 轉換為選項並按數量排序
-            return Array.from(difficultyCounts.entries())
+
+            // 難度順序（用於排序）
+            const difficultyOrder: Record<'easy' | 'medium' | 'hard', number> = {
+              easy: 1,
+              medium: 2,
+              hard: 3,
+            }
+
+            // 轉換為選項並按難度順序排序（簡單 → 中等 → 困難）
+            const result = Array.from(difficultyCounts.entries())
               .map(([value, count]) => ({
                 value,
                 label: difficultyLabels[value],
                 count,
               }))
-              .sort((a, b) => b.count - a.count)
+              .sort((a, b) => difficultyOrder[a.value] - difficultyOrder[b.value])
+
+            console.log('[FilterBar] Difficulties result:', result.length)
+            return result
           })(),
-          
-          // 獲取實際存在的標籤
+
+          // 獲取實際存在的標籤（從 tags 表）
           (async () => {
-            const { data: recipes, error } = await supabase
-              .from('recipes')
-              .select('tags')
-              .eq('status', 'published')
-              .eq('is_public', true)
-            
-            if (error || !recipes) {
+            try {
+              console.log('[FilterBar] Fetching tags from tags table...')
+              // 從 tags 表獲取所有標籤，按 usage_count 排序
+              const { data: tagsData, error: tagsError } = await supabase
+                .from('tags')
+                .select('id, name, usage_count')
+                .order('usage_count', { ascending: false })
+
+              console.log('[FilterBar] Tags query completed, data:', tagsData?.length || 0, 'error:', tagsError)
+
+              if (tagsError) {
+                console.error('[FilterBar] Error fetching tags:', tagsError)
+                return []
+              }
+
+              if (!tagsData || tagsData.length === 0) {
+                console.warn('[FilterBar] No tags found in database')
+                return []
+              }
+
+              console.log(`[FilterBar] Successfully fetched ${tagsData.length} tags`)
+
+              // 轉換為選項格式
+              return tagsData.map((tag: any) => ({
+                name: tag.name,
+                count: tag.usage_count || 0,
+              })).filter((tag: any) => tag.count > 0) // 只顯示有使用的標籤
+            } catch (error) {
+              console.error('[FilterBar] Exception while fetching tags:', error)
               return []
             }
-            
-            // 收集所有標籤並計算數量
-            const tagCounts = new Map<string, number>()
-            for (const recipe of recipes) {
-              const tags = (recipe as any).tags as string[] | null
-              if (tags && Array.isArray(tags)) {
-                for (const tag of tags) {
-                  if (tag && typeof tag === 'string' && tag.trim()) {
-                    const trimmedTag = tag.trim()
-                    tagCounts.set(trimmedTag, (tagCounts.get(trimmedTag) || 0) + 1)
-                  }
-                }
-              }
-            }
-            
-            // 轉換為選項並按數量排序
-            return Array.from(tagCounts.entries())
-              .map(([name, count]) => ({
-                name,
-                count,
-              }))
-              .sort((a, b) => b.count - a.count)
           })(),
         ])
         
+        console.log('[FilterBar] Fetch results:', {
+          categories: categoriesResult.length,
+          difficulties: difficultiesResult.length,
+          tags: tagsResult.length
+        })
+
         setCategories(categoriesResult as Category[])
         setDifficulties(difficultiesResult as Difficulty[])
         setTags(tagsResult as Tag[])
+
+        console.log('[FilterBar] Filter data updated successfully')
       } catch (err) {
-        console.error('Error fetching filter data:', err)
+        console.error('[FilterBar] Error fetching filter data:', err)
+        // 確保即使出錯也設置為空陣列，而不是 undefined
+        setCategories([])
+        setDifficulties([])
+        setTags([])
       } finally {
         setLoading(false)
+        console.log('[FilterBar] Finished fetching filter data')
       }
     }
-    
+
+    console.log('[FilterBar] Component mounted, will fetch filter data')
     fetchFilterData()
   }, [])
 

@@ -68,52 +68,53 @@ export async function getRecipes(options: GetRecipesOptions = {}): Promise<Recip
   }
   
   if (options.tags && options.tags.length > 0) {
-    // For JSONB array field with Chinese characters, we need to use a different approach
-    // The contains() method doesn't work properly with Chinese tags in Supabase
-    // We'll use a workaround: fetch recipes and filter in memory
+    // 使用新的 tags 表和 recipe_tags 關聯表
     const allRecipeIds = new Set<string>()
-    
-    // Get all recipes first (we'll filter by status/is_public in memory)
-    // This is necessary because contains() doesn't work with Chinese characters
-    const { data: allRecipes, error: fetchError } = await supabase
-      .from('recipes')
-      .select('id, tags, status, is_public')
-    
-    if (fetchError) {
-      console.error('[getRecipes] 獲取食譜列表時發生錯誤:', fetchError)
-    } else if (allRecipes) {
-      console.log(`[getRecipes] 總共獲取到 ${allRecipes.length} 個已發布的食譜`)
-      
-      // Filter recipes that contain any of the selected tags
-      // Use partial matching: if search tag is "韓式", it will match "韓式料理", "韓式烤肉", etc.
-      for (const recipe of allRecipes) {
-        const recipeData = recipe as any
-        const recipeTags = (recipeData.tags as string[]) || []
-        const hasMatchingTag = options.tags.some(tag => {
-          // Check if any recipe tag contains the search tag, or the search tag contains the recipe tag
-          // This allows "韓式" to match "韓式料理" and vice versa
-          return recipeTags.some(recipeTag => 
-            recipeTag.includes(tag) || tag.includes(recipeTag)
-          )
-        })
-        
-        if (hasMatchingTag) {
-          // Check if recipe is published and public (with default values)
-          const isPublished = recipeData.status === 'published' || recipeData.status === null || recipeData.status === undefined
-          const isPublic = recipeData.is_public === true || recipeData.is_public === null || recipeData.is_public === undefined
-          
-          if (isPublished && isPublic) {
-            allRecipeIds.add(recipeData.id)
-          }
+
+    for (const tagName of options.tags) {
+      // 清理標籤名稱（去除前後空格）
+      const cleanTagName = tagName.trim()
+      if (!cleanTagName) continue
+
+      // 先從 tags 表找到對應的標籤 ID（使用 ilike 進行不區分大小寫的模糊匹配）
+      const { data: tagData, error: tagError } = await supabase
+        .from('tags')
+        .select('id, name')
+        .ilike('name', cleanTagName)
+        .maybeSingle()
+
+      if (tagError) {
+        console.error('[getRecipes] 獲取標籤時發生錯誤:', tagError, '標籤名稱:', cleanTagName)
+        continue
+      }
+
+      if (!tagData) {
+        console.log('[getRecipes] 找不到標籤:', cleanTagName)
+        continue
+      }
+
+      // 從 recipe_tags 表獲取使用此標籤的食譜 ID
+      const tagId = (tagData as { id: string; name: string }).id
+      const { data: recipeTags, error: recipeTagsError } = await supabase
+        .from('recipe_tags')
+        .select('recipe_id')
+        .eq('tag_id', tagId)
+
+      if (recipeTagsError) {
+        console.error('[getRecipes] 獲取食譜標籤關聯時發生錯誤:', recipeTagsError, '標籤ID:', tagId)
+        continue
+      }
+
+      if (recipeTags && recipeTags.length > 0) {
+        console.log(`[getRecipes] 找到 ${recipeTags.length} 個使用標籤 "${(tagData as any).name}" 的食譜`)
+        for (const rt of recipeTags) {
+          allRecipeIds.add((rt as any).recipe_id)
         }
       }
-      
-      console.log(`[getRecipes] 找到 ${allRecipeIds.size} 個符合標籤條件的食譜`)
     }
-    
+
     recipeIds = Array.from(allRecipeIds)
     if (recipeIds.length === 0) {
-      // No recipes found with any of the tags, return empty result
       console.log('[getRecipes] 沒有找到符合標籤條件的食譜，返回空陣列')
       return []
     }
