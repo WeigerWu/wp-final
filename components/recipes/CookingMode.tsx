@@ -228,7 +228,7 @@ export function CookingMode({ recipe, onExit }: CookingModeProps) {
 
           {/* Step Image */}
           {currentStepData.image_url && (
-            <div className="relative h-[500px] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
+            <div className="relative h-[600px] w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
               <Image
                 src={currentStepData.image_url}
                 alt={`步驟 ${currentStep + 1}`}

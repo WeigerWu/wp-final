@@ -47,7 +47,7 @@ export function RecipeCard({ recipe, className }: RecipeCardProps) {
         !isPreview && "transition-shadow hover:shadow-md"
       )}>
         {/* Recipe Image */}
-        <div className="relative h-48 w-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+        <div className="relative aspect-square w-full overflow-hidden bg-gray-200 dark:bg-gray-700">
           {recipe.image_url ? (
             <Image
               src={recipe.image_url}
