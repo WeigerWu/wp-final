@@ -16,10 +16,10 @@ export const metadata: Metadata = {
   description: "一個可供使用者上傳、探索與分享食譜的網站平台，結合社群互動與智慧推薦機制，形成一個活躍的烹飪社群",
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/favicon.png', type: 'image/png' },
+      { url: '/imcook_icon.png', sizes: 'any' },
+      { url: '/imcook_icon.png', type: 'image/png' },
     ],
-    apple: '/favicon.png',
+    apple: '/imcook_icon.png',
   },
 }
 

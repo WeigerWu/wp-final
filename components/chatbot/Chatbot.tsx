@@ -6,7 +6,7 @@ import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { QuickActions } from './QuickActions'
 import { Recipe } from '@/types/recipe'
-import { chatWithRecipeAssistant, getConversationMessages, deleteConversation } from '@/lib/actions/chatbot'
+import { chatWithRecipeAssistant, getConversationMessages, deleteConversation, saveQuickActionMessage } from '@/lib/actions/chatbot'
 import Link from 'next/link'
 
 interface Message {
@@ -15,13 +15,20 @@ interface Message {
   recipes?: Recipe[]
 }
 
+// 快速回覆按鈕對應的固定回應
+const QUICK_ACTION_RESPONSES: Record<string, string> = {
+  '根據食材推薦食譜': '好的！請告訴我您有哪些食材，我會為您推薦適合的食譜。您可以列出食材名稱，例如：雞蛋、番茄、洋蔥等。',
+  '根據飲食偏好篩選': '好的！請告訴我您的飲食偏好，例如：素食、無麩質、低卡、低脂等，我會為您篩選符合條件的食譜。',
+  '根據難易度推薦食譜': '好的！請告訴我您希望的難易度：簡單、中等、或困難？我會為您推薦相應難度的食譜。',
+}
+
 export function Chatbot() {
   const { user, loading: authLoading } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難度和時間推薦\n\n請問你需要什麼幫助呢？'
+      content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難易度推薦\n\n請問你需要什麼幫助呢？'
     }
   ])
   const [isLoading, setIsLoading] = useState(false)
@@ -81,7 +88,7 @@ export function Chatbot() {
       setMessages([
         {
           role: 'assistant',
-          content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難度和時間推薦\n\n請問你需要什麼幫助呢？'
+          content: '你好！我是食譜推薦助手 👨‍🍳\n\n我可以幫你：\n- 根據食材推薦食譜\n- 根據飲食偏好篩選\n- 根據難易度推薦\n\n請問你需要什麼幫助呢？'
         }
       ])
     } catch (error) {
@@ -100,6 +107,38 @@ export function Chatbot() {
     // 添加用戶訊息
     const userMessage: Message = { role: 'user', content: message }
     setMessages(prev => [...prev, userMessage])
+
+    // 檢查是否為快速回覆按鈕的消息
+    const quickResponse = QUICK_ACTION_RESPONSES[message]
+    if (quickResponse) {
+      // 如果是快速回覆按鈕，顯示固定回應並保存到對話歷史
+      // 這樣 AI 在後續回覆時可以參考上下文
+      
+      // 保存到資料庫並獲取推薦食譜
+      try {
+        const result = await saveQuickActionMessage(message, quickResponse, conversationId)
+        if (result.newConversationId) {
+          setConversationId(result.newConversationId)
+        }
+        
+        // 顯示固定回應和推薦食譜
+        const fixedResponse: Message = { 
+          role: 'assistant', 
+          content: quickResponse,
+          recipes: result.recipes
+        }
+        setMessages(prev => [...prev, fixedResponse])
+      } catch (error) {
+        console.error('Error saving quick action message:', error)
+        // 即使保存失敗也顯示固定回應
+        const fixedResponse: Message = { role: 'assistant', content: quickResponse }
+        setMessages(prev => [...prev, fixedResponse])
+      }
+      
+      return // 只顯示固定回應，不繼續執行 AI 處理
+    }
+
+    // 如果不是快速回覆按鈕，則正常調用 AI
     setIsLoading(true)
 
     try {
@@ -264,12 +303,11 @@ export function Chatbot() {
         )}
       </div>
 
-      {/* Quick Actions - 永遠顯示初始選項 */}
+      {/* Quick Actions */}
       {!isLoading && !isDeleting && (
         <QuickActions 
           onSelect={handleSend}
           onDelete={handleDeleteConversation}
-          context="initial"
           showDelete={conversationId !== undefined && messages.length > 1}
         />
       )}

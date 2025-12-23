@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseClient } from '@/lib/supabase/client'
+import { useAuth } from '@/components/providers/AuthProvider'
 import { uploadImage } from '@/lib/cloudinary'
 import { smartCompressImage } from '@/lib/image-utils'
 import { autoCategorize } from '@/lib/utils/auto-categorize'
@@ -44,6 +45,7 @@ interface SubmissionState {
 
 export function RecipeUploadForm() {
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     step: 'idle',
     progress: 0,
@@ -425,8 +427,13 @@ export function RecipeUploadForm() {
     }
   }
 
+  // 使用 AuthProvider 的认证状态，不需要单独检查
+  // authLoading 和 user 状态由 AuthProvider 管理
+
   // 獲取分類列表
   useEffect(() => {
+    if (authLoading || !user) return
+    
     const fetchCategories = async () => {
       try {
         const supabase = createSupabaseClient()
@@ -449,12 +456,13 @@ export function RecipeUploadForm() {
     }
     
     fetchCategories()
-  }, [])
+  }, [user, authLoading])
 
-  // 載入草稿（僅在首次載入時執行一次）
+  // 載入草稿（僅在已登入且首次載入時執行一次）
   const [draftLoaded, setDraftLoaded] = useState(false)
   useEffect(() => {
-    if (draftLoaded) return
+    // 只有在已登入的情況下才載入草稿
+    if (authLoading || !user || draftLoaded) return
     
     const draft = loadDraft()
     if (draft) {
@@ -483,7 +491,7 @@ export function RecipeUploadForm() {
       }
     }
     setDraftLoaded(true)
-  }, [draftLoaded])
+  }, [user, authLoading, draftLoaded])
 
   // 自動分類：當標題、描述或標籤變化時，自動建議分類
   useEffect(() => {
@@ -522,8 +530,8 @@ export function RecipeUploadForm() {
   // 自動儲存草稿（當表單內容變化時）
   const saveDraftTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    // 如果是首次載入，不自動儲存
-    if (!draftLoaded) return
+    // 只有在已登入且不是首次載入時才自動儲存
+    if (authLoading || !user || !draftLoaded) return
     
     // 清除之前的定時器
     if (saveDraftTimeoutRef.current) {
@@ -555,7 +563,7 @@ export function RecipeUploadForm() {
         clearTimeout(saveDraftTimeoutRef.current)
       }
     }
-  }, [title, description, servings, prepTime, cookTime, difficulty, categoryId, imagePreview, ingredients, steps, stepImagePreviews, tags, customCategories, draftLoaded])
+  }, [title, description, servings, prepTime, cookTime, difficulty, categoryId, imagePreview, ingredients, steps, stepImagePreviews, tags, customCategories, draftLoaded, user, authLoading])
 
   // 重置狀態
   const resetState = () => {
@@ -563,6 +571,65 @@ export function RecipeUploadForm() {
   }
 
   const isSubmitting = submissionState.step !== 'idle' && submissionState.step !== 'success' && submissionState.step !== 'error'
+
+  // 如果正在檢查登入狀態，顯示載入中
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600 dark:text-primary-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">正在驗證登入狀態...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 如果未登入，顯示提示信息
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
+                <AlertCircle className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+              </div>
+              <h2 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                請先登入
+              </h2>
+              <p className="mb-6 text-gray-600 dark:text-gray-400">
+                您需要先登入帳號才能上傳食譜
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button
+                  onClick={() => router.push('/auth/login?redirect=/recipes/new')}
+                  className="w-full sm:w-auto"
+                >
+                  前往登入
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push('/recipes')}
+                  className="w-full sm:w-auto"
+                >
+                  返回食譜列表
+                </Button>
+              </div>
+              <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                還沒有帳號？{' '}
+                <Link
+                  href="/auth/signup"
+                  className="text-primary-600 hover:underline dark:text-primary-400"
+                >
+                  立即註冊
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -586,7 +653,7 @@ export function RecipeUploadForm() {
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">上傳食譜</h1>
               <p className="mt-2 text-gray-600 dark:text-gray-400">分享你的美味料理</p>
             </div>
-            {hasDraft() && (
+            {user && hasDraft() && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <Save className="h-4 w-4" />
                 <span>
@@ -609,51 +676,62 @@ export function RecipeUploadForm() {
 
         {/* 提交狀態顯示 */}
         {(submissionState.step !== 'idle') && (
-          <div className="mb-6 rounded-lg border-2 p-6 shadow-lg" style={{
-            borderColor: submissionState.step === 'success' ? '#10b981' : submissionState.step === 'error' ? '#ef4444' : '#3b82f6',
-            backgroundColor: submissionState.step === 'success' ? '#ecfdf5' : submissionState.step === 'error' ? '#fef2f2' : '#eff6ff',
-          }}>
+          <div className={`mb-6 rounded-lg border-2 p-6 shadow-lg ${
+            submissionState.step === 'success' 
+              ? 'border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/20' 
+              : submissionState.step === 'error' 
+              ? 'border-red-500 bg-red-50 dark:border-red-400 dark:bg-red-900/20' 
+              : 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
+          }`}>
             <div className="flex items-start space-x-4">
               {/* 圖標 */}
               <div className="flex-shrink-0">
                 {submissionState.step === 'success' ? (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                    <Check className="h-6 w-6 text-green-600" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                    <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
                 ) : submissionState.step === 'error' ? (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                    <AlertCircle className="h-6 w-6 text-red-600" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
                   </div>
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                    <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-600 dark:text-blue-400" />
                   </div>
                 )}
               </div>
 
               {/* 內容 */}
               <div className="flex-1">
-                <h3 className="text-lg font-semibold mb-1" style={{
-                  color: submissionState.step === 'success' ? '#065f46' : submissionState.step === 'error' ? '#991b1b' : '#1e40af',
-                }}>
+                <h3 className={`text-lg font-semibold mb-1 ${
+                  submissionState.step === 'success' 
+                    ? 'text-green-700 dark:text-green-300' 
+                    : submissionState.step === 'error' 
+                    ? 'text-red-700 dark:text-red-300' 
+                    : 'text-blue-700 dark:text-blue-300'
+                }`}>
                   {submissionState.step === 'success' 
                     ? '🎉 發布成功！' 
                     : submissionState.step === 'error' 
                     ? '❌ 發布失敗' 
                     : '正在發布...'}
                 </h3>
-                <p className="text-sm mb-3" style={{
-                  color: submissionState.step === 'success' ? '#047857' : submissionState.step === 'error' ? '#dc2626' : '#2563eb',
-                }}>
+                <p className={`text-sm mb-3 ${
+                  submissionState.step === 'success' 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : submissionState.step === 'error' 
+                    ? 'text-red-600 dark:text-red-400' 
+                    : 'text-blue-600 dark:text-blue-400'
+                }`}>
                   {submissionState.message}
                 </p>
 
                 {/* 進度條 */}
                 {isSubmitting && (
                   <div className="mb-3">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                       <div 
-                        className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                        className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300 ease-out"
                         style={{ width: `${submissionState.progress}%` }}
                       />
                     </div>
@@ -665,15 +743,15 @@ export function RecipeUploadForm() {
 
                 {/* 錯誤訊息 */}
                 {submissionState.step === 'error' && submissionState.error && (
-                  <div className="rounded-md bg-red-50 p-3 mb-3">
-                    <p className="text-sm text-red-800">{submissionState.error}</p>
+                  <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 mb-3">
+                    <p className="text-sm text-red-800 dark:text-red-300">{submissionState.error}</p>
                   </div>
                 )}
 
                 {/* 成功訊息 */}
                 {submissionState.step === 'success' && (
-                  <div className="rounded-md bg-green-50 p-3 mb-3">
-                    <p className="text-sm text-green-800">食譜已成功發布，即將跳轉到食譜列表...</p>
+                  <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-3 mb-3">
+                    <p className="text-sm text-green-800 dark:text-green-300">食譜已成功發布，即將跳轉到食譜列表...</p>
                   </div>
                 )}
 
@@ -708,7 +786,7 @@ export function RecipeUploadForm() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="例如：奶油蒜香雞胸"
-                  className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 text-lg focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                   required
                   disabled={isSubmitting}
                 />
@@ -721,7 +799,7 @@ export function RecipeUploadForm() {
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
                   placeholder="例如：上班族 15 分鐘就能完成的奶油蒜香雞胸。"
-                  className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                   disabled={isSubmitting}
                 />
               </div>
@@ -732,7 +810,7 @@ export function RecipeUploadForm() {
                 <div
                   onClick={() => !isSubmitting && document.getElementById('image-upload')?.click()}
                   className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 transition-colors dark:border-gray-600 dark:bg-gray-700 ${
-                    isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100 dark:hover:bg-gray-600'
                   }`}
                 >
                   {imagePreview ? (
@@ -783,7 +861,7 @@ export function RecipeUploadForm() {
                     onChange={(e) => setServings(e.target.value)}
                     min="1"
                     placeholder="2"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -795,7 +873,7 @@ export function RecipeUploadForm() {
                     onChange={(e) => setPrepTime(e.target.value)}
                     min="1"
                     placeholder="10"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -807,7 +885,7 @@ export function RecipeUploadForm() {
                     onChange={(e) => setCookTime(e.target.value)}
                     min="1"
                     placeholder="15"
-                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
+                    className="w-full rounded-md border border-gray-300 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -825,8 +903,8 @@ export function RecipeUploadForm() {
                       disabled={isSubmitting}
                       className={`flex-1 rounded-md px-4 py-3 font-medium transition-colors ${
                         difficulty === diff
-                          ? 'bg-primary-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-primary-500 text-white dark:bg-primary-600'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                       } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {diff === 'easy' ? '簡單' : diff === 'medium' ? '中等' : '困難'}
@@ -857,9 +935,9 @@ export function RecipeUploadForm() {
                         userSelectedCategoryRef.current = true
                         setIsAutoSuggested(false)
                       }}
-                      className={`w-full rounded-md border px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 ${
+                      className={`w-full rounded-md border px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 ${
                         isAutoSuggested && suggestedCategoryId === categoryId
-                          ? 'border-primary-300 bg-primary-50 dark:bg-primary-900/20'
+                          ? 'border-primary-300 bg-primary-50 dark:border-primary-600 dark:bg-primary-900/20'
                           : 'border-gray-300'
                       }`}
                       disabled={isSubmitting}
@@ -888,7 +966,7 @@ export function RecipeUploadForm() {
               <h2 className="mb-4 text-xl font-bold">② 食材列表</h2>
               
               {/* 自定義分類輸入 */}
-              <div className="mb-4 rounded-lg bg-gray-50 p-4">
+              <div className="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-700/50">
                 <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-gray-300">自定義分類</label>
                 <div className="flex gap-2">
                   <input
@@ -919,7 +997,7 @@ export function RecipeUploadForm() {
                     {customCategories.map((cat) => (
                       <span
                         key={cat}
-                        className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800"
+                        className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                       >
                         {cat}
                         {!isSubmitting && (
@@ -988,9 +1066,9 @@ export function RecipeUploadForm() {
                 }
 
                 return categoriesWithIngredients.map((category) => (
-                  <div key={category} className="rounded-lg border border-gray-200 p-4">
+                  <div key={category} className="rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                         {category === '未分類' ? '未分類' : category}
                       </h3>
                       {!isSubmitting && (
@@ -1016,7 +1094,7 @@ export function RecipeUploadForm() {
                                 value={ingredient.name}
                                 onChange={(e) => updateIngredient(index, 'name', e.target.value)}
                                 placeholder="食材名稱"
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                                 disabled={isSubmitting}
                               />
                             </div>
@@ -1026,7 +1104,7 @@ export function RecipeUploadForm() {
                                 value={ingredient.amount}
                                 onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
                                 placeholder="數量"
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                                 disabled={isSubmitting}
                               />
                             </div>
@@ -1034,7 +1112,7 @@ export function RecipeUploadForm() {
                               <select
                                 value={ingredient.unit}
                                 onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                                 disabled={isSubmitting}
                               >
                                 <option value="">單位</option>
@@ -1070,7 +1148,7 @@ export function RecipeUploadForm() {
                               <select
                                 value={ingredient.category}
                                 onChange={(e) => updateIngredient(index, 'category', e.target.value)}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                                 disabled={isSubmitting}
                               >
                                 <option value="">無分類</option>
@@ -1087,7 +1165,7 @@ export function RecipeUploadForm() {
                                 value={ingredient.note}
                                 onChange={(e) => updateIngredient(index, 'note', e.target.value)}
                                 placeholder="備註"
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                                 disabled={isSubmitting}
                               />
                             </div>
@@ -1131,9 +1209,9 @@ export function RecipeUploadForm() {
 
             <div className="space-y-4">
               {steps.map((step, index) => (
-                <div key={index} className="rounded-lg border border-gray-200 p-4">
+                <div key={index} className="rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">步驟 {index + 1}</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">步驟 {index + 1}</h3>
                     {!isSubmitting && (
                       <Button
                         type="button"
@@ -1152,7 +1230,7 @@ export function RecipeUploadForm() {
                     onChange={(e) => updateStep(index, 'instruction', e.target.value)}
                     rows={3}
                     placeholder="例如：將雞胸肉切成適口大小，撒上鹽與胡椒稍微醃 10 分鐘。"
-                    className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
+                    className="mb-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                     disabled={isSubmitting}
                   />
 
@@ -1162,7 +1240,7 @@ export function RecipeUploadForm() {
                     <div
                       onClick={() => !isSubmitting && document.getElementById(`step-image-upload-${index}`)?.click()}
                       className={`relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-4 transition-colors dark:border-gray-600 dark:bg-gray-700 ${
-                        isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100'
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary-500 hover:bg-gray-100 dark:hover:bg-gray-600'
                       }`}
                     >
                       {stepImagePreviews[index] || step.image_url ? (
@@ -1209,7 +1287,7 @@ export function RecipeUploadForm() {
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">
                         預估時間（分鐘）
                       </label>
                       <input
@@ -1218,7 +1296,7 @@ export function RecipeUploadForm() {
                         onChange={(e) => updateStep(index, 'timer_minutes', parseInt(e.target.value) || 0)}
                         min="1"
                         placeholder="3"
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                         disabled={isSubmitting}
                       />
                     </div>
@@ -1244,8 +1322,8 @@ export function RecipeUploadForm() {
                       disabled={isSubmitting}
                       className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
                         tags.includes(tag)
-                          ? 'bg-primary-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-primary-500 text-white dark:bg-primary-600'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                       } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       #{tag}
@@ -1293,7 +1371,7 @@ export function RecipeUploadForm() {
                     {tags.map((tag) => (
                       <span
                         key={tag}
-                        className="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800"
+                        className="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-800 dark:bg-primary-900/30 dark:text-primary-300"
                       >
                         #{tag}
                         {!isSubmitting && (
@@ -1314,7 +1392,7 @@ export function RecipeUploadForm() {
           </section>
 
           {/* 底部按鈕 */}
-          <div className="sticky bottom-0 z-10 rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
+          <div className="sticky bottom-0 z-10 rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
             <div className="flex justify-end gap-4">
               <Button
                 type="button"

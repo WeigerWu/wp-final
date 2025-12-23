@@ -42,6 +42,7 @@ export function FilterBar() {
     const fetchFilterData = async () => {
       console.log('[FilterBar] Starting to fetch filter data...')
       try {
+        // 每次挂载时都创建新的客户端实例，避免缓存问题
         const supabase = createSupabaseClient()
 
         // 並行獲取所有資料
