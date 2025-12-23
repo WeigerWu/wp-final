@@ -315,36 +315,57 @@ export async function getRecipesClient(options: {
 } = {}): Promise<Recipe[]> {
   const supabase = createSupabaseClient()
   
-  // Handle tags filtering first if needed
+  // Handle tags filtering first if needed (使用新的 tags 表和 recipe_tags 關聯表)
   let recipeIds: string[] | null = null
   if (options.tags && options.tags.length > 0) {
     const allRecipeIds = new Set<string>()
-    
-    const { data: allRecipes, error: fetchError } = await supabase
-      .from('recipes')
-      .select('id, tags, status, is_public')
-    
-    if (fetchError) {
-      console.error('[getRecipesClient] 獲取食譜列表時發生錯誤:', fetchError)
-    } else if (allRecipes) {
-      for (const recipe of allRecipes) {
-        const recipeData = recipe as any
-        const recipeTags = (recipeData.tags as string[]) || []
-        const hasMatchingTag = options.tags!.some(tag => recipeTags.includes(tag))
-        
-        if (hasMatchingTag) {
-          const isPublished = recipeData.status === 'published' || recipeData.status === null || recipeData.status === undefined
-          const isPublic = recipeData.is_public === true || recipeData.is_public === null || recipeData.is_public === undefined
-          
-          if (isPublished && isPublic) {
-            allRecipeIds.add(recipeData.id)
-          }
+
+    // 使用新的 tags 表和 recipe_tags 關聯表
+    for (const tagName of options.tags) {
+      // 清理標籤名稱（去除前後空格）
+      const cleanTagName = tagName.trim()
+      if (!cleanTagName) continue
+
+      // 先從 tags 表找到對應的標籤 ID（使用 ilike 進行不區分大小寫的模糊匹配）
+      const { data: tagData, error: tagError } = await supabase
+        .from('tags')
+        .select('id, name')
+        .ilike('name', cleanTagName)
+        .maybeSingle()
+
+      if (tagError) {
+        console.error('[getRecipesClient] 獲取標籤時發生錯誤:', tagError, '標籤名稱:', cleanTagName)
+        continue
+      }
+
+      if (!tagData) {
+        console.log('[getRecipesClient] 找不到標籤:', cleanTagName)
+        continue
+      }
+
+      // 從 recipe_tags 表獲取使用此標籤的食譜 ID
+      const tagId = (tagData as { id: string; name: string }).id
+      const { data: recipeTags, error: recipeTagsError } = await supabase
+        .from('recipe_tags')
+        .select('recipe_id')
+        .eq('tag_id', tagId)
+
+      if (recipeTagsError) {
+        console.error('[getRecipesClient] 獲取食譜標籤關聯時發生錯誤:', recipeTagsError, '標籤ID:', tagId)
+        continue
+      }
+
+      if (recipeTags && recipeTags.length > 0) {
+        console.log(`[getRecipesClient] 找到 ${recipeTags.length} 個使用標籤 "${(tagData as any).name}" 的食譜`)
+        for (const rt of recipeTags) {
+          allRecipeIds.add((rt as any).recipe_id)
         }
       }
     }
-    
+
     recipeIds = Array.from(allRecipeIds)
     if (recipeIds.length === 0) {
+      console.log('[getRecipesClient] 沒有找到符合標籤條件的食譜')
       return []
     }
   }
