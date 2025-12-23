@@ -1,6 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+// 這個路由需要動態渲染，因為它使用了 cookies
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
