@@ -326,13 +326,13 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
 
       {/* Recipe Image */}
       {recipe.image_url && (
-        <div className="relative h-96 w-full overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
+        <div className="relative mx-auto h-[600px] w-4/5 overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
           <Image
             src={recipe.image_url}
             alt={recipe.title}
             fill
-            className="object-cover"
-            sizes="100vw"
+            className="object-contain"
+            sizes="80vw"
             priority
           />
         </div>
@@ -365,7 +365,7 @@ export function RecipeDetail({ recipe: initialRecipe }: RecipeDetailProps) {
               <div className="flex-1">
                 <p className="text-gray-700 dark:text-gray-300">{step.instruction}</p>
                 {step.image_url && (
-                  <div className="mt-2 relative h-48 w-full max-w-md overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
+                  <div className="mt-2 relative h-64 w-full max-w-md overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-700">
                     <Image
                       src={step.image_url}
                       alt={`步驟 ${step.step_number || index + 1}`}
