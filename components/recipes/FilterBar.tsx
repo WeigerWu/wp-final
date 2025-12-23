@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { X, ChevronDown, ChevronUp, Tag, Layers, Gauge, Filter, ChevronLeft } from 'lucide-react'
 import { createSupabaseClient } from '@/lib/supabase/client'
 
@@ -37,12 +37,20 @@ export function FilterBar() {
   const [tagsShowAll, setTagsShowAll] = useState(false)
   const [tagsScrolled, setTagsScrolled] = useState(false)
   const tagsScrollRef = useRef<HTMLDivElement>(null)
+  const paramsKey = useMemo(() => searchParams.toString(), [searchParams])
 
   useEffect(() => {
     const fetchFilterData = async () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:41',message:'FilterBar useEffect triggered',data:{searchParams:searchParams.toString()},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.log('[FilterBar] Starting to fetch filter data...')
       try {
         const supabase = createSupabaseClient()
+        // #region agent log
+        const { data: sessionData } = await supabase.auth.getSession();
+        fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:45',message:'Supabase session check',data:{hasSession:!!sessionData?.session,expiresAt:sessionData?.session?.expires_at},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
 
         // 並行獲取所有資料
         const [categoriesResult, difficultiesResult, tagsResult] = await Promise.all([
@@ -128,21 +136,28 @@ export function FilterBar() {
               hard: '困難',
             }
 
-            // 難度順序（用於排序）
+            // 難度順序（固定順序：簡單 → 中等 → 困難，不按數量排序）
             const difficultyOrder: Record<'easy' | 'medium' | 'hard', number> = {
-              easy: 1,
-              medium: 2,
-              hard: 3,
+              easy: 1,    // 簡單排第一
+              medium: 2,  // 中等排第二
+              hard: 3,    // 困難排第三
             }
 
-            // 轉換為選項並按難度順序排序（簡單 → 中等 → 困難）
-            const result = Array.from(difficultyCounts.entries())
-              .map(([value, count]) => ({
-                value,
-                label: difficultyLabels[value],
-                count,
-              }))
-              .sort((a, b) => difficultyOrder[a.value] - difficultyOrder[b.value])
+            // 轉換為選項並按固定難度順序排序（簡單 → 中等 → 困難）
+            const entries = Array.from(difficultyCounts.entries())
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:139',message:'Before difficulty sort',data:{entries:entries.map(([v,c])=>({value:v,count:c})),difficultyOrder},timestamp:Date.now(),sessionId:'debug-session',runId:'fix',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            const mapped = entries.map(([value, count]) => ({
+              value,
+              label: difficultyLabels[value],
+              count,
+            }))
+            // 按固定順序排序（不使用 count，確保始終是：簡單 → 中等 → 困難）
+            const result = mapped.sort((a, b) => difficultyOrder[a.value] - difficultyOrder[b.value])
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:157',message:'After difficulty sort - fixed order',data:{result:result.map(r=>({value:r.value,label:r.label,order:difficultyOrder[r.value],count:r.count}))},timestamp:Date.now(),sessionId:'debug-session',runId:'fix',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
 
             console.log('[FilterBar] Difficulties result:', result.length)
             return result
@@ -171,6 +186,9 @@ export function FilterBar() {
               }
 
               console.log(`[FilterBar] Successfully fetched ${tagsData.length} tags`)
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:174',message:'Tags fetched successfully',data:{tagsCount:tagsData.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+              // #endregion
 
               // 轉換為選項格式
               return tagsData.map((tag: any) => ({
@@ -179,6 +197,9 @@ export function FilterBar() {
               })).filter((tag: any) => tag.count > 0) // 只顯示有使用的標籤
             } catch (error) {
               console.error('[FilterBar] Exception while fetching tags:', error)
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:181',message:'Exception fetching tags',data:{error:String(error),errorName:error instanceof Error?error.name:'unknown',errorMessage:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
+              // #endregion
               return []
             }
           })(),
@@ -189,27 +210,49 @@ export function FilterBar() {
           difficulties: difficultiesResult.length,
           tags: tagsResult.length
         })
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:193',message:'Before setting state',data:{categories:categoriesResult.length,difficulties:difficultiesResult.length,difficultiesOrder:difficultiesResult.map(d=>({value:d.value,label:d.label})),tags:tagsResult.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
 
         setCategories(categoriesResult as Category[])
         setDifficulties(difficultiesResult as Difficulty[])
         setTags(tagsResult as Tag[])
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:196',message:'State set successfully',data:{categoriesCount:categoriesResult.length,difficultiesCount:difficultiesResult.length,tagsCount:tagsResult.length},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
 
         console.log('[FilterBar] Filter data updated successfully')
       } catch (err) {
         console.error('[FilterBar] Error fetching filter data:', err)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:198',message:'Error in fetchFilterData',data:{error:String(err),errorName:err instanceof Error?err.name:'unknown',errorMessage:err instanceof Error?err.message:String(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         // 確保即使出錯也設置為空陣列，而不是 undefined
         setCategories([])
         setDifficulties([])
         setTags([])
       } finally {
         setLoading(false)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:207',message:'fetchFilterData completed',data:{loading:false},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         console.log('[FilterBar] Finished fetching filter data')
       }
     }
 
     console.log('[FilterBar] Component mounted, will fetch filter data')
     fetchFilterData()
-  }, [])
+    // Re-fetch when searchParams change to handle refresh scenarios
+  }, [paramsKey])
+
+  // 監聽 difficulties 變化以記錄排序結果
+  useEffect(() => {
+    if (difficulties.length > 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/5cf67247-1702-45ec-8e44-5e522786abbf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'FilterBar.tsx:215',message:'Difficulties state updated',data:{difficulties:difficulties.map(d=>({value:d.value,label:d.label,count:d.count}))},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+    }
+  }, [difficulties])
 
   // 監聽標籤區域滾動狀態
   useEffect(() => {
