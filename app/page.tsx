@@ -95,53 +95,61 @@ export default async function HomePage() {
   ]
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 md:py-12">
       {/* Hero Section */}
-      <section className="mb-12 text-center">
-        <h1 className="mb-4 text-4xl font-bold md:text-6xl dark:text-gray-100">
+      <section className="mb-16 text-center">
+        <h1 className="mb-4 text-4xl font-bold md:text-5xl lg:text-6xl dark:text-gray-100 tracking-tight">
           探索美味的食譜世界
         </h1>
-        <p className="mb-8 text-lg text-gray-600 md:text-xl dark:text-gray-400">
+        <p className="mb-10 text-lg text-gray-600 md:text-xl dark:text-gray-400 max-w-2xl mx-auto">
           上傳、分享、探索各式各樣的食譜，與全球烹飪愛好者一起交流
         </p>
-        <div className="flex justify-center gap-4">
-          <Link 
-            href="/recipes/new"
-            className="inline-flex items-center justify-center rounded-md bg-primary-600 px-6 py-3 text-lg font-medium text-white transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-          >
-            上傳食譜
-          </Link>
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
           <Link 
             href="/recipes"
-            className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-6 py-3 text-lg font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-8 py-3.5 text-lg font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:shadow hover:border-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:border-gray-500"
           >
             探索食譜
+          </Link>
+          <Link 
+            href="/recipes/new"
+            className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-8 py-3.5 text-lg font-medium text-white shadow-sm transition-all hover:bg-primary-700 hover:shadow-md hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0"
+          >
+            上傳食譜
           </Link>
         </div>
       </section>
 
       {/* Recipe Sections */}
       {sections.map((section, index) => (
-        <section key={section.title} className={index > 0 ? 'mt-12' : ''}>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold dark:text-gray-100">{section.title}</h2>
+        <section key={section.title} className={index > 0 ? 'mt-16 md:mt-20' : ''}>
+          <div className="mb-8 flex items-center justify-between">
+            <h2 className="text-2xl md:text-3xl font-bold dark:text-gray-100">{section.title}</h2>
             {section.linkHref && section.linkText && (
               <Link 
                 href={section.linkHref} 
-                className="text-primary-600 hover:underline dark:text-primary-400"
+                className="text-primary-600 transition-all hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 group"
               >
-                {section.linkText}
+                <span>{section.linkText.replace(' →', '')}</span>
+                <span className="transition-transform group-hover:translate-x-1">→</span>
               </Link>
             )}
           </div>
           {section.recipes.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {section.recipes.map((recipe) => (
-                <RecipeCard key={recipe.id} recipe={recipe} />
+              {section.recipes.map((recipe, idx) => (
+                <div 
+                  key={recipe.id}
+                  style={{ 
+                    animation: `fadeIn 0.5s ease-out ${idx * 0.05}s both`
+                  }}
+                >
+                  <RecipeCard recipe={recipe} />
+                </div>
               ))}
             </div>
           ) : (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center dark:border-gray-700 dark:bg-gray-800">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-12 text-center dark:border-gray-700 dark:bg-gray-800/50">
               <p className="text-gray-600 dark:text-gray-400">暫無食譜</p>
             </div>
           )}

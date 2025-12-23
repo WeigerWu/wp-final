@@ -113,11 +113,11 @@ export function Navbar() {
   ]
 
   return (
-    <nav className="border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <nav className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/80 backdrop-blur-md shadow-sm dark:border-gray-700/80 dark:bg-gray-900/80">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2 text-xl font-bold text-primary-600 dark:text-primary-400">
-            <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0">
+          <Link href="/" className="flex items-center space-x-2 text-xl font-bold text-primary-600 transition-opacity hover:opacity-80 dark:text-primary-400">
+            <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-100 dark:ring-gray-800">
               <Image
                 src="/imcook_icon.png"
                 alt="I'm cooked logo"
@@ -135,15 +135,20 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`transition-colors hover:text-primary-600 dark:hover:text-primary-400 ${
-                  pathname === item.href ? 'text-primary-600 font-semibold dark:text-primary-400' : 'text-gray-700 dark:text-gray-300'
+                className={`relative transition-all duration-200 hover:text-primary-600 dark:hover:text-primary-400 ${
+                  pathname === item.href 
+                    ? 'text-primary-600 font-semibold dark:text-primary-400' 
+                    : 'text-gray-700 dark:text-gray-300'
                 }`}
               >
                 {item.label}
+                {pathname === item.href && (
+                  <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary-600 dark:bg-primary-400 rounded-full" />
+                )}
               </Link>
             ))}
             {showSearch ? (
-              <form ref={searchFormRef} onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+              <form ref={searchFormRef} onSubmit={handleSearchSubmit} className="flex items-center gap-2" style={{ animation: 'fadeIn 0.2s ease-out' }}>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                   <input
@@ -152,7 +157,7 @@ export function Navbar() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="搜尋食譜..."
                     autoFocus
-                    className="w-64 rounded-md border border-gray-300 py-1.5 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                    className="w-64 rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:ring-primary-400/20"
                   />
                 </div>
                 <Button type="submit" size="sm">搜尋</Button>
@@ -162,7 +167,7 @@ export function Navbar() {
                     setShowSearch(false)
                     setSearchQuery('')
                   }}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  className="text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                   aria-label="關閉搜尋"
                 >
                   <X className="h-4 w-4" />
@@ -171,10 +176,10 @@ export function Navbar() {
             ) : (
               <button
                 onClick={handleSearchIconClick}
-                className="text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
+                className="text-gray-700 transition-colors hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
                 aria-label="搜尋食譜"
               >
-                <Search className="h-5 w-5" />
+                <Search className="h-5 w-5 transition-transform hover:scale-110" />
               </button>
             )}
           </div>
@@ -206,10 +211,10 @@ export function Navbar() {
                       alt={profile.display_name || profile.username || 'User'}
                       width={32}
                       height={32}
-                      className="h-8 w-8 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                      className="h-8 w-8 rounded-full object-cover ring-2 ring-gray-200 dark:ring-gray-700 transition-all hover:ring-primary-300 dark:hover:ring-primary-700"
                     />
                   ) : (
-                    <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-700">
+                    <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center ring-2 ring-gray-200 dark:ring-gray-700 transition-all hover:ring-primary-300 dark:hover:ring-primary-700">
                       <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                     </div>
                   )}
@@ -219,7 +224,7 @@ export function Navbar() {
                 </div>
                 <Link
                   href={authUser ? `/profile/${authUser.id}` : '/profile'}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 transition-colors"
+                  className="flex items-center space-x-2 rounded-md px-3 py-1.5 text-gray-700 transition-all hover:bg-gray-100 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-primary-400"
                 >
                   <User className="h-5 w-5" />
                   <span>個人資料</span>

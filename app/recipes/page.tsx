@@ -40,19 +40,19 @@ export default async function RecipesPage({ searchParams }: RecipesPageProps) {
   })
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="mb-2 text-3xl font-bold dark:text-gray-100">探索食譜</h1>
-        <p className="text-gray-600 dark:text-gray-400">發現來自世界各地的美味食譜</p>
+    <div className="container mx-auto px-4 py-8 md:py-12">
+      <div className="mb-8">
+        <h1 className="mb-3 text-3xl md:text-4xl font-bold dark:text-gray-100 tracking-tight">探索食譜</h1>
+        <p className="text-lg text-gray-600 dark:text-gray-400">發現來自世界各地的美味食譜</p>
       </div>
 
       {/* Search Bar */}
-      <div className="mb-4">
+      <div className="mb-6">
         <SearchBar />
       </div>
 
       {/* Filter Bar */}
-      <div className="mb-6">
+      <div className="mb-8">
         <FilterBar />
       </div>
 

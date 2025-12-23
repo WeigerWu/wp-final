@@ -20,7 +20,7 @@ export function CategoryLink({ category, className, onClick }: CategoryLinkProps
       href={`/recipes/category/${categorySlug}`}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 transition-colors hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800",
+        "inline-flex items-center rounded-full bg-primary-100 px-3 py-1.5 text-xs font-medium text-primary-800 transition-all duration-200 hover:bg-primary-200 hover:scale-105 active:scale-100 dark:bg-primary-900/30 dark:text-primary-300 dark:hover:bg-primary-900/50",
         className
       )}
     >

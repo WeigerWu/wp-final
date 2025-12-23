@@ -111,8 +111,18 @@ export interface RecommendationCriteria {
   tags?: string[]
 }
 
-async function extractCriteria(userMessage: string): Promise<RecommendationCriteria> {
+async function extractCriteria(userMessage: string, conversationId?: string): Promise<RecommendationCriteria> {
   try {
+    // 獲取對話歷史（如果有）
+    let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    if (conversationId) {
+      const messages = await getConversationMessages(conversationId)
+      conversationHistory = messages.map((msg: any) => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      }))
+    }
+    
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -129,14 +139,20 @@ async function extractCriteria(userMessage: string): Promise<RecommendationCrite
   "tags": ["標籤1", "標籤2"]
 }
 
+**難度對應：**
+- "簡單"、"容易" → "easy"
+- "中等" → "medium"
+- "困難"、"難" → "hard"
+
 **重要規則：**
-1. 如果用戶沒有明確提到某個條件（例如：沒有說「簡單」、「中等」、「困難」），就不要包含該欄位
-2. 如果用戶只說「根據時間推薦」或「時間較短」，只提取時間相關條件，不要推斷難度
-3. 如果用戶只說「根據食材推薦」，只提取食材，不要推斷其他條件
-4. 絕對不要自行推斷或假設用戶沒有明確提到的條件
+1. 如果用戶輸入「簡單」、「中等」、「困難」等難度詞彙，必須提取為對應的 difficulty 欄位
+2. 如果之前的對話中提到「根據難易度推薦」，而用戶現在只輸入「簡單」、「中等」、「困難」，也要提取難度
+3. 如果用戶沒有明確提到某個條件，就不要包含該欄位
+4. 絕對不要自行推斷或假設用戶沒有明確提到的條件（除了難度詞彙）
 
 只回答 JSON，不要其他文字。`
         },
+        ...conversationHistory,
         {
           role: 'user',
           content: userMessage
@@ -150,7 +166,33 @@ async function extractCriteria(userMessage: string): Promise<RecommendationCrite
     if (!content) return {}
 
     try {
-      return JSON.parse(content) as RecommendationCriteria
+      const parsed = JSON.parse(content) as RecommendationCriteria
+      
+      // 確保難度映射正確
+      if (parsed.difficulty) {
+        const difficultyMap: Record<string, 'easy' | 'medium' | 'hard'> = {
+          '簡單': 'easy',
+          '容易': 'easy',
+          '簡單的': 'easy',
+          '容易的': 'easy',
+          '中等': 'medium',
+          '中等的': 'medium',
+          '困難': 'hard',
+          '難': 'hard',
+          '困難的': 'hard',
+          '難的': 'hard',
+          'easy': 'easy',
+          'medium': 'medium',
+          'hard': 'hard'
+        }
+        
+        const difficultyStr = String(parsed.difficulty).toLowerCase()
+        if (difficultyMap[difficultyStr]) {
+          parsed.difficulty = difficultyMap[difficultyStr]
+        }
+      }
+      
+      return parsed
     } catch {
       return {}
     }
@@ -163,7 +205,7 @@ async function extractCriteria(userMessage: string): Promise<RecommendationCrite
 // 根據條件查詢食譜
 async function findMatchingRecipes(criteria: RecommendationCriteria): Promise<Recipe[]> {
   const options: Parameters<typeof getRecipes>[0] = {
-    limit: 20, // 先取得較多，之後再篩選
+    limit: 50, // 增加限制以確保有足夠的食譜可選
   }
 
   // 根據標籤過濾
@@ -171,15 +213,15 @@ async function findMatchingRecipes(criteria: RecommendationCriteria): Promise<Re
     options.tags = criteria.tags
   }
 
-  // 根據難度過濾（需要在記憶體中過濾）
+  // 根據難度過濾（直接在資料庫查詢時過濾，更高效）
+  if (criteria.difficulty) {
+    options.difficulty = criteria.difficulty
+  }
+
   let recipes = await getRecipes(options)
 
-  // 在記憶體中進行更精細的過濾
+  // 在記憶體中進行更精細的過濾（難度已在資料庫查詢時過濾）
   recipes = recipes.filter(recipe => {
-    // 難度過濾
-    if (criteria.difficulty && recipe.difficulty !== criteria.difficulty) {
-      return false
-    }
 
     // 時間過濾
     if (criteria.maxPrepTime && recipe.prep_time && recipe.prep_time > criteria.maxPrepTime) {
@@ -279,8 +321,48 @@ export async function chatWithRecipeAssistant(
     }
   }
 
-  // 2. 提取推薦條件
-  const criteria = await extractCriteria(userMessage)
+  // 2. 先嘗試直接識別難度詞彙（簡單、中等、困難）
+  const difficultyMap: Record<string, 'easy' | 'medium' | 'hard'> = {
+    '簡單': 'easy',
+    '容易': 'easy',
+    '簡單的': 'easy',
+    '容易的': 'easy',
+    '中等': 'medium',
+    '中等的': 'medium',
+    '困難': 'hard',
+    '難': 'hard',
+    '困難的': 'hard',
+    '難的': 'hard',
+    'easy': 'easy',
+    'medium': 'medium',
+    'hard': 'hard'
+  }
+  
+  // 直接檢查用戶輸入是否為難度詞彙
+  const userMessageTrimmed = userMessage.trim()
+  let directDifficulty: 'easy' | 'medium' | 'hard' | undefined = undefined
+  
+  // 優先檢查完全匹配
+  if (difficultyMap[userMessageTrimmed]) {
+    directDifficulty = difficultyMap[userMessageTrimmed]
+  } else {
+    // 檢查是否包含難度詞彙
+    const userMessageLower = userMessageTrimmed.toLowerCase()
+    for (const [key, value] of Object.entries(difficultyMap)) {
+      if (userMessageLower.includes(key.toLowerCase())) {
+        directDifficulty = value
+        break
+      }
+    }
+  }
+  
+  // 提取推薦條件（包含對話歷史上下文）
+  let criteria = await extractCriteria(userMessage, conversationId)
+  
+  // 如果直接識別到難度，優先使用直接識別的結果
+  if (directDifficulty) {
+    criteria.difficulty = directDifficulty
+  }
 
   // 3. 查詢匹配的食譜
   const matchingRecipes = await findMatchingRecipes(criteria)
